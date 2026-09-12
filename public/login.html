@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login de personal | WhineUp</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="flex min-h-screen items-center justify-center bg-[#020817] px-4 text-white">
+    <div class="w-full max-w-md rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-violet-500/10 backdrop-blur-xl sm:p-8">
+      <div class="mb-8 text-center">
+        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-2xl font-black">W</div>
+        <p class="mt-4 text-xs uppercase tracking-[0.28em] text-violet-300">WhineUp staff</p>
+        <h1 class="mt-3 text-3xl font-black">Acceso autorizado</h1>
+      </div>
+
+      <form id="loginForm" class="space-y-5">
+        <div>
+          <label for="username" class="mb-2 block text-sm font-medium text-slate-200">Usuario</label>
+          <input id="username" type="email" required placeholder="staff@whineup.com" class="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20" />
+        </div>
+
+        <div>
+          <label for="password" class="mb-2 block text-sm font-medium text-slate-200">Contraseña</label>
+          <input id="password" type="password" required placeholder="••••••••" class="w-full rounded-2xl border border-white/10 bg-slate-900/90 px-4 py-3 text-white outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20" />
+        </div>
+
+        <button type="submit" class="w-full rounded-2xl bg-gradient-to-r from-violet-500 to-brand-500 px-4 py-3.5 font-bold text-white shadow-glow transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70">
+          Entrar al panel
+        </button>
+      </form>
+
+      <div id="statusMessage" class="mt-5 hidden rounded-2xl border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-100"></div>
+
+      <a href="/" class="mt-6 block text-center text-sm text-violet-200 hover:text-violet-100">← Volver a la home</a>
+    </div>
+
+    <script>
+      const loginForm = document.querySelector('#loginForm');
+      const statusMessage = document.querySelector('#statusMessage');
+      const submitButton = loginForm.querySelector('button');
+
+      function showStatus(message, isError = true) {
+        statusMessage.textContent = message;
+        statusMessage.className = `mt-5 rounded-2xl p-3 text-sm ${isError ? 'border border-red-500/30 bg-red-500/10 text-red-100' : 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100'}`;
+        statusMessage.classList.remove('hidden');
+      }
+
+      async function verifySession() {
+        try {
+          const response = await fetch('/api/session-status');
+          const data = await response.json();
+          if (data.authenticated) {
+            window.location.href = '/scanner-dashboard';
+          }
+        } catch (error) {
+          console.error('No se pudo verificar sesión:', error);
+        }
+      }
+
+      loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        submitButton.disabled = true;
+        submitButton.textContent = 'Validando...';
+
+        try {
+          const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: document.querySelector('#username').value.trim(),
+              password: document.querySelector('#password').value
+            })
+          });
+
+          const data = await response.json();
+          if (!response.ok) {
+            showStatus(data.mensaje || 'Credenciales incorrectas.', true);
+            return;
+          }
+
+          showStatus('Acceso correcto. Redirigiendo...', false);
+          window.setTimeout(() => {
+            window.location.href = '/scanner-dashboard';
+          }, 500);
+        } catch (error) {
+          showStatus('No se pudo iniciar sesión. Inténtalo de nuevo.', true);
+        } finally {
+          submitButton.disabled = false;
+          submitButton.textContent = 'Entrar al panel';
+        }
+      });
+
+      verifySession();
+    </script>
+  </body>
+</html>

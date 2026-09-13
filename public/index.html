@@ -74,7 +74,7 @@
 
             <div class="mt-8 grid max-w-md grid-cols-3 gap-4">
               <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <p class="text-2xl font-black text-white">8k+</p>
+                <p id="entradasCount" class="text-2xl font-black text-white">0</p>
                 <p class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">Entradas</p>
               </div>
               <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
@@ -238,6 +238,7 @@
       const submitButton = document.querySelector('#submitButton');
       const paymentReferenceWrap = document.querySelector('#paymentReferenceWrap');
       const paymentReferenceInput = document.querySelector('#paymentReference');
+      const entradasCount = document.querySelector('#entradasCount');
 
       let selectedEvent = null;
 
@@ -317,6 +318,18 @@
           }
         } catch (error) {
           console.error('Error cargando eventos:', error);
+        }
+      }
+
+      async function cargarEstadisticas() {
+        try {
+          const response = await fetch('/api/estadisticas-publicas');
+          const data = await response.json();
+          if (response.ok && data.ok) {
+            entradasCount.textContent = new Intl.NumberFormat('es-CR').format(Number(data.entradas || 0));
+          }
+        } catch (error) {
+          console.error('Error cargando estadísticas:', error);
         }
       }
 
@@ -401,6 +414,7 @@
       });
 
       cargarEventos();
+      cargarEstadisticas();
     </script>
   </body>
 </html>

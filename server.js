@@ -285,6 +285,21 @@ app.get("/api/eventos", (req, res) => {
   res.json({ ok: true, eventos: EVENTOS });
 });
 
+app.get("/api/estadisticas-publicas", async (req, res) => {
+  try {
+    let entradas = MEMORY_TICKETS.size;
+    if (db) {
+      const snapshot = await db.collection("tickets").count().get();
+      entradas = snapshot.data().count;
+    }
+
+    return res.json({ ok: true, entradas });
+  } catch (error) {
+    console.error("Error al consultar estadísticas públicas:", error);
+    return res.json({ ok: true, entradas: 0 });
+  }
+});
+
 app.post("/api/login", async (req, res) => {
   try {
     const username = String(req.body.username || "").trim().toLowerCase();

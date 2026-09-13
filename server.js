@@ -19,31 +19,13 @@ const LOGIN_ATTEMPTS = new Map();
 
 const EVENTOS = [
   {
-    id: "nightwave-2026",
-    nombre: "NightWave Festival",
-    fecha: "12 Oct 2026",
-    lugar: "Plaza del Sol, Madrid",
+    id: "halloween-party",
+    nombre: "HALLOWEEN PARTY",
+    fecha: "31 Oct 2026",
+    lugar: "WhineUp CR",
     precio: 45000,
     categoria: "General",
-    descripcion: "Música en vivo, DJs, barra y ambiente premium durante toda la noche."
-  },
-  {
-    id: "sunset-club",
-    nombre: "Sunset Club",
-    fecha: "25 Oct 2026",
-    lugar: "Terreno Sur, Valencia",
-    precio: 68000,
-    categoria: "VIP",
-    descripcion: "Acceso exclusivo con zona lounge, cócteles y vista panorámica."
-  },
-  {
-    id: "creative-summit",
-    nombre: "Creative Summit",
-    fecha: "02 Nov 2026",
-    lugar: "Centro de Congresos, Barcelona",
-    precio: 32000,
-    categoria: "Early Access",
-    descripcion: "Networking, speakers internacionales y experiencia de innovación."
+    descripcion: "La fiesta de Halloween de WhineUp CR. Música, disfraces y una noche inolvidable."
   }
 ];
 

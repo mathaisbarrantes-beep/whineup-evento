@@ -1,0 +1,42 @@
+/* WhineUp monochrome visual system. */
+body {
+  background: #050505 !important;
+  color: #f5f5f5 !important;
+}
+
+[class*="from-violet-"],
+[class*="to-violet-"],
+[class*="from-brand-"],
+[class*="to-brand-"],
+[class*="from-fuchsia-"],
+[class*="to-fuchsia-"],
+[class*="from-sky-"] {
+  background-image: linear-gradient(135deg, #111111, #737373) !important;
+}
+
+[class*="text-violet-"],
+[class*="text-brand-"],
+[class*="text-fuchsia-"],
+[class*="text-sky-"],
+[class*="text-emerald-"] {
+  color: #e5e5e5 !important;
+}
+
+[class*="bg-violet-"],
+[class*="bg-brand-"],
+[class*="bg-fuchsia-"],
+[class*="bg-sky-"],
+[class*="bg-emerald-"] {
+  background-color: #1f1f1f !important;
+}
+
+[class*="border-violet-"],
+[class*="border-brand-"],
+[class*="border-fuchsia-"] {
+  border-color: #737373 !important;
+}
+
+[class*="shadow-violet-"],
+[class*="shadow-fuchsia-"] {
+  --tw-shadow-color: rgba(255, 255, 255, 0.15) !important;
+}

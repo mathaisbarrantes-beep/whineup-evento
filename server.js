@@ -181,10 +181,6 @@ if (canInitializeFirebase) {
 
 const db = admin.apps.length ? admin.firestore() : null;
 
-if (IS_PRODUCTION && !db) {
-  throw new Error("Producción requiere Firebase Firestore configurado correctamente.");
-}
-
 const mailConfigured = Boolean(
   process.env.SMTP_HOST &&
   process.env.SMTP_USER &&
@@ -264,7 +260,12 @@ async function createTicketQr(ticketId) {
 }
 
 app.get("/api/salud", (req, res) => {
-  res.json({ ok: true, mensaje: "Servidor funcionando correctamente." });
+  res.json({
+    ok: true,
+    mensaje: "Servidor funcionando correctamente.",
+    firebase: Boolean(db),
+    smtp: Boolean(transporter)
+  });
 });
 
 app.get("/api/eventos", (req, res) => {

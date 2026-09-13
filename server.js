@@ -250,6 +250,19 @@ async function getPendingPaymentTickets() {
     .slice(0, 100);
 }
 
+async function getGeneratedTickets() {
+  if (db) {
+    const snapshot = await db.collection("tickets").limit(200).get();
+    return snapshot.docs
+      .map((document) => document.data())
+      .sort((left, right) => new Date(right.creadoEn) - new Date(left.creadoEn));
+  }
+
+  return Array.from(MEMORY_TICKETS.values())
+    .sort((left, right) => new Date(right.creadoEn) - new Date(left.creadoEn))
+    .slice(0, 200);
+}
+
 async function createTicketQr(ticketId) {
   return QRCode.toBuffer(ticketId, {
     type: "png",
@@ -493,6 +506,20 @@ app.get("/api/admin/pagos-pendientes", requireStaffAuth, async (req, res) => {
   } catch (error) {
     console.error("Error al consultar pagos pendientes:", error);
     return res.status(500).json({ ok: false, mensaje: "No se pudieron consultar los pagos pendientes." });
+  }
+});
+
+app.get("/api/admin/entradas", requireStaffAuth, async (req, res) => {
+  try {
+    if (req.staffSession.user.role !== "admin") {
+      return res.status(403).json({ ok: false, mensaje: "Solo el administrador puede revisar las entradas." });
+    }
+
+    const tickets = await getGeneratedTickets();
+    return res.json({ ok: true, tickets });
+  } catch (error) {
+    console.error("Error al consultar entradas:", error);
+    return res.status(500).json({ ok: false, mensaje: "No se pudieron consultar las entradas." });
   }
 });
 

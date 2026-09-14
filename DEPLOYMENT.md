@@ -17,8 +17,9 @@
 3. Configura `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Settings → API → Project API keys → `service_role`, secreta) y `SUPABASE_ANON_KEY` (la clave `anon`/`public`, esa sí puede quedar visible en el navegador).
 4. En Authentication → Providers, activa **Google** y sigue el asistente de Supabase para configurar el cliente OAuth de Google Cloud. En Authentication → URL Configuration, agrega la URL real del sitio en "Site URL" y "Redirect URLs".
 5. Crea las cuentas de staff/admin manualmente en Authentication → Users → "Add user" (correo + contraseña). Después, en el SQL Editor, actualiza su rol: `update public.perfiles set rol = 'admin' where id = '<uuid del usuario>';` (o `'staff'`).
-6. Programa respaldos automáticos en Settings → Database → Backups y verifica una restauración antes del primer evento.
-7. En producción, si `SUPABASE_URL` o `SUPABASE_SERVICE_ROLE_KEY` faltan, las rutas que dependen de la base responden error en vez de guardar nada en memoria — no hay modo de respaldo silencioso.
+6. Crea al menos un evento antes de abrir el sitio: sin eventos, la portada y el generador de QR aparecen vacíos. Puedes descomentar el `insert into public.eventos (...)` de ejemplo al final de `supabase/schema.sql` y ajustarlo, crearlo a mano en Table Editor → `eventos`, o llamar a `POST /api/admin/eventos` con una cuenta admin. La `categoria` debe ser `General` o `VIP`.
+7. Programa respaldos automáticos en Settings → Database → Backups y verifica una restauración antes del primer evento.
+8. En producción, si `SUPABASE_URL` o `SUPABASE_SERVICE_ROLE_KEY` faltan, las rutas que dependen de la base responden error en vez de guardar nada en memoria — no hay modo de respaldo silencioso.
 
 ## 3. Pagos
 

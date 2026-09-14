@@ -159,3 +159,22 @@ $$;
 
 revoke all on function public.validar_entrada(uuid) from public;
 grant execute on function public.validar_entrada(uuid) to service_role;
+
+-- ========== PRIMER EVENTO (ejemplo, comentado a propósito) ==========
+--
+-- Sin al menos un evento activo, la portada y el generador de QR no muestran
+-- nada. Descomenta y ajusta este insert, o crea el evento desde el panel de
+-- administración (POST /api/admin/eventos).
+--
+-- "categoria" debe ser 'General' o 'VIP': al comprar se copia a
+-- entradas.tipo_entrada, que tiene ese CHECK.
+--
+-- insert into public.eventos (nombre, fecha, lugar, precio, categoria, descripcion)
+-- values (
+--   'HALLOWEEN PARTY',
+--   '2026-10-31 21:00:00-06',
+--   'WhineUp CR, San José',
+--   15000,
+--   'General',
+--   'La fiesta de Halloween de WhineUp CR.'
+-- );

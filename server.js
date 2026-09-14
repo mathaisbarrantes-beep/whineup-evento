@@ -28,6 +28,8 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
+const CATEGORIAS_VALIDAS = ["General", "VIP"];
+
 function correoValido(correo) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
 }
@@ -145,14 +147,32 @@ app.get("/api/session-status", async (req, res) => {
   });
 });
 
+app.get("/api/admin/eventos", requireRole("admin"), async (req, res) => {
+  try {
+    const eventos = await eventosRepo.listarTodos();
+    res.json({ ok: true, eventos });
+  } catch (error) {
+    console.error("Error al consultar eventos del panel:", error);
+    res.status(500).json({ ok: false, mensaje: "No se pudieron consultar los eventos." });
+  }
+});
+
 app.post("/api/admin/eventos", requireRole("admin"), async (req, res) => {
   try {
+    // La categoría del evento se usa como tipo_entrada al comprar y esa
+    // columna tiene un CHECK: si aquí entra texto libre, toda compra de ese
+    // evento falla con un 500 opaco. Se valida al crear, no al comprar.
+    const categoria = String(req.body.categoria || "General").trim();
+    if (!CATEGORIAS_VALIDAS.includes(categoria)) {
+      return res.status(400).json({ ok: false, mensaje: "La categoría del evento debe ser General o VIP." });
+    }
+
     const evento = await eventosRepo.crear({
       nombre: String(req.body.nombre || "").trim(),
       fecha: req.body.fecha,
       lugar: String(req.body.lugar || "").trim(),
       precio: Number(req.body.precio || 0),
-      categoria: String(req.body.categoria || "General").trim(),
+      categoria,
       descripcion: String(req.body.descripcion || "").trim(),
       cupo_maximo: req.body.cupoMaximo ? Number(req.body.cupoMaximo) : null,
       creado_por: req.usuario.id
@@ -171,7 +191,13 @@ app.put("/api/admin/eventos/:id", requireRole("admin"), async (req, res) => {
     if (req.body.fecha !== undefined) cambios.fecha = req.body.fecha;
     if (req.body.lugar !== undefined) cambios.lugar = String(req.body.lugar).trim();
     if (req.body.precio !== undefined) cambios.precio = Number(req.body.precio);
-    if (req.body.categoria !== undefined) cambios.categoria = String(req.body.categoria).trim();
+    if (req.body.categoria !== undefined) {
+      const categoria = String(req.body.categoria).trim();
+      if (!CATEGORIAS_VALIDAS.includes(categoria)) {
+        return res.status(400).json({ ok: false, mensaje: "La categoría del evento debe ser General o VIP." });
+      }
+      cambios.categoria = categoria;
+    }
     if (req.body.descripcion !== undefined) cambios.descripcion = String(req.body.descripcion).trim();
     if (req.body.cupoMaximo !== undefined) cambios.cupo_maximo = req.body.cupoMaximo ? Number(req.body.cupoMaximo) : null;
     if (req.body.activo !== undefined) cambios.activo = Boolean(req.body.activo);
@@ -377,7 +403,21 @@ app.get("/api/ticket/:ticketId", requireSupabase, async (req, res) => {
     if (!ticket) {
       return res.status(404).json({ ok: false, mensaje: "Ticket no encontrado." });
     }
-    res.json({ ok: true, ticket });
+    // Enlace público de consulta: solo lo que ticket.html muestra. El resto
+    // del renglón (correo, teléfono, referencia de pago, ids de usuario) no
+    // sale de aquí.
+    res.json({
+      ok: true,
+      ticket: {
+        id: ticket.id,
+        evento: ticket.evento,
+        nombre: ticket.nombre,
+        tipoEntrada: ticket.tipoEntrada,
+        creadoEn: ticket.creadoEn,
+        precio: ticket.precio,
+        pagado: ticket.pagado
+      }
+    });
   } catch (error) {
     console.error("Error al consultar ticket:", error);
     res.status(500).json({ ok: false, mensaje: "No se pudo consultar el ticket." });

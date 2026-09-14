@@ -1,12 +1,19 @@
 {
   "name": "whineup-evento",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
-  "description": "Sistema de entradas con codigo QR para eventos",
+  "description": "Venta de entradas con codigo QR de un solo uso y validacion en el propio sitio",
   "main": "server.js",
+  "engines": {
+    "node": ">=18.17"
+  },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "secreto": "node scripts/generar-credenciales.js secreto",
+    "hash": "node scripts/generar-credenciales.js hash",
+    "staff": "node scripts/generar-credenciales.js staff",
+    "test": "node --test test/"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

@@ -1,8 +1,22 @@
+# Secretos: nada de esto debe entrar nunca en el repositorio
 .env
 .env.*
 !.env.example
+*service-account*.json
 firebase-service-account*.json
+*.pem
+*.key
+*.p12
+secrets/
+
+# Dependencias y artefactos
 node_modules/
 npm-debug.log*
+yarn-error.log*
 *.log
+coverage/
+.vercel/
+
+# Sistema
 .DS_Store
+Thumbs.db

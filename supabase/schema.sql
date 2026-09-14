@@ -1,0 +1,161 @@
+-- Extensión necesaria para generar UUIDs
+create extension if not exists pgcrypto;
+
+-- ========== PERFILES ==========
+
+create table public.perfiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  nombre text,
+  rol text not null default 'cliente' check (rol in ('cliente','staff','admin')),
+  creado_en timestamptz not null default now()
+);
+
+alter table public.perfiles enable row level security;
+
+create policy "perfiles_select" on public.perfiles
+  for select using (
+    auth.uid() = id
+    or exists (select 1 from public.perfiles p where p.id = auth.uid() and p.rol in ('staff','admin'))
+  );
+
+-- Crea el perfil solo, la primera vez que alguien inicia sesión
+create or replace function public.manejar_nuevo_usuario()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into public.perfiles (id, nombre)
+  values (new.id, coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', new.email))
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.manejar_nuevo_usuario();
+
+-- Función auxiliar: rol de la persona que está haciendo el pedido.
+-- (security definer para que no choque con las políticas de RLS de perfiles)
+create or replace function public.rol_actual()
+returns text
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select rol from public.perfiles where id = auth.uid();
+$$;
+
+-- ========== EVENTOS ==========
+
+create table public.eventos (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null,
+  fecha timestamptz not null,
+  lugar text not null,
+  precio numeric(10,2) not null check (precio >= 0),
+  categoria text not null default 'General',
+  descripcion text,
+  cupo_maximo integer check (cupo_maximo is null or cupo_maximo > 0),
+  activo boolean not null default true,
+  creado_por uuid references auth.users(id),
+  creado_en timestamptz not null default now()
+);
+
+alter table public.eventos enable row level security;
+
+create policy "eventos_lectura_publica" on public.eventos
+  for select using (activo = true or public.rol_actual() in ('staff','admin'));
+
+create policy "eventos_admin_escritura" on public.eventos
+  for all using (public.rol_actual() = 'admin') with check (public.rol_actual() = 'admin');
+
+-- ========== ENTRADAS ==========
+
+create table public.entradas (
+  id uuid primary key default gen_random_uuid(),
+  evento_id uuid not null references public.eventos(id),
+  usuario_id uuid references auth.users(id),
+  nombre text not null,
+  correo text not null,
+  telefono text,
+  tipo_entrada text not null default 'General' check (tipo_entrada in ('General','VIP')),
+  precio numeric(10,2) not null,
+  metodo_pago text check (metodo_pago in ('paypal','numero')),
+  referencia_pago text,
+  pagado boolean not null default false,
+  estado text not null default 'PENDIENTE_PAGO' check (estado in ('PENDIENTE_PAGO','PENDIENTE','INGRESADO','CANCELADO')),
+  pago_confirmado_por uuid references auth.users(id),
+  pago_confirmado_en timestamptz,
+  ingresado_en timestamptz,
+  generado_por uuid references auth.users(id),
+  creado_en timestamptz not null default now()
+);
+
+create index entradas_usuario_id_idx on public.entradas(usuario_id);
+create index entradas_evento_id_idx on public.entradas(evento_id);
+create index entradas_estado_idx on public.entradas(estado);
+
+alter table public.entradas enable row level security;
+
+create policy "entradas_select_propias" on public.entradas
+  for select using (auth.uid() = usuario_id or public.rol_actual() in ('staff','admin'));
+
+-- No hay políticas de INSERT/UPDATE para usuarios comunes: todas las
+-- escrituras las hace el servidor con la service role key, que ignora RLS.
+-- Esto es intencional (ver "Arquitectura" en el diseño): centraliza la
+-- validación de negocio en un solo lugar en vez de duplicarla en políticas.
+
+-- ========== INVALIDAR QR AL ESCANEAR (atómico) ==========
+
+create or replace function public.validar_entrada(p_entrada_id uuid)
+returns table (
+  permitido boolean,
+  mensaje text,
+  nombre text,
+  evento text,
+  tipo_entrada text
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_entrada public.entradas%rowtype;
+  v_evento_nombre text;
+begin
+  -- "for update" bloquea el renglón: si dos escaneos llegan al mismo
+  -- tiempo, el segundo espera a que termine el primero y ve el estado ya
+  -- actualizado. Por diseño de Postgres, no pueden pasar los dos.
+  select * into v_entrada from public.entradas where id = p_entrada_id for update;
+
+  if not found then
+    return query select false, 'Ticket no encontrado.'::text, null::text, null::text, null::text;
+    return;
+  end if;
+
+  if not v_entrada.pagado or v_entrada.estado = 'PENDIENTE_PAGO' then
+    return query select false, 'Denegado: pago pendiente de confirmación.'::text, null::text, null::text, null::text;
+    return;
+  end if;
+
+  select nombre into v_evento_nombre from public.eventos where id = v_entrada.evento_id;
+
+  if v_entrada.estado <> 'PENDIENTE' then
+    return query select false, 'Denegado: ticket ya utilizado.'::text, v_entrada.nombre, v_evento_nombre, v_entrada.tipo_entrada;
+    return;
+  end if;
+
+  update public.entradas
+    set estado = 'INGRESADO', ingresado_en = now()
+    where id = p_entrada_id;
+
+  return query select true, 'Acceso permitido.'::text, v_entrada.nombre, v_evento_nombre, v_entrada.tipo_entrada;
+end;
+$$;
+
+revoke all on function public.validar_entrada(uuid) from public;
+grant execute on function public.validar_entrada(uuid) to service_role;

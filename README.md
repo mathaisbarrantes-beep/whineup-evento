@@ -51,6 +51,7 @@ npm test
 
 | Archivo | Contenido |
 | --- | --- |
+| [CLAUDE.md](CLAUDE.md) | Estado del proyecto, decisiones tomadas y pendientes |
 | [EMAILJS.md](EMAILJS.md) | Configurar EmailJS y las plantillas de correo |
 | [DEPLOYMENT.md](DEPLOYMENT.md) | Checklist completo antes de publicar |
 | [SEGURIDAD.md](SEGURIDAD.md) | Auditoria: que estaba mal y como quedo |

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WhineUp | Entradas para eventos</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <link rel="stylesheet" href="/theme.css" />
     <script>
       tailwind.config = {
@@ -144,6 +145,14 @@
             <p class="text-sm uppercase tracking-[0.25em] text-neutral-300">Checkout</p>
             <h3 class="mt-3 text-3xl font-black text-white">Paga antes de generar tu entrada</h3>
 
+            <div id="authGate" class="mb-6 rounded-2xl border border-white/10 bg-[#121212]/80 p-4 text-sm text-slate-300">
+              <p id="authStatus">Inicia sesión con Google para comprar tu entrada.</p>
+              <button id="googleLoginButton" type="button" class="mt-3 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 font-semibold text-white transition hover:border-white/40">
+                Iniciar sesión con Google
+              </button>
+            </div>
+
+            <div id="checkoutFormWrap" class="hidden">
             <form id="ticketForm" class="mt-6 space-y-5">
               <div>
                 <label for="fullName" class="mb-2 block text-sm font-medium text-slate-200">Nombre completo</label>
@@ -190,6 +199,7 @@
                 Pagar y generar entrada
               </button>
             </form>
+            </div>
 
             <div id="resultado" class="mt-6 hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100" role="status"></div>
           </div>
@@ -224,6 +234,54 @@
     </main>
 
     <script>
+      const authGate = document.querySelector('#authGate');
+      const authStatus = document.querySelector('#authStatus');
+      const googleLoginButton = document.querySelector('#googleLoginButton');
+      const checkoutFormWrap = document.querySelector('#checkoutFormWrap');
+
+      let supabaseClient = null;
+      let currentSession = null;
+
+      async function initAuth() {
+        try {
+          const response = await fetch('/api/config');
+          const config = await response.json();
+          if (!config.supabaseUrl || !config.supabaseAnonKey) {
+            authStatus.textContent = 'La compra no está disponible todavía.';
+            googleLoginButton.classList.add('hidden');
+            return;
+          }
+
+          supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          handleSession(session);
+
+          supabaseClient.auth.onAuthStateChange((_event, session) => {
+            handleSession(session);
+          });
+
+          googleLoginButton.addEventListener('click', async () => {
+            await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+          });
+        } catch (error) {
+          console.error('No se pudo inicializar el login:', error);
+        }
+      }
+
+      function handleSession(session) {
+        currentSession = session;
+        if (session) {
+          authStatus.textContent = `Sesión iniciada como ${session.user.email}.`;
+          googleLoginButton.classList.add('hidden');
+          checkoutFormWrap.classList.remove('hidden');
+        } else {
+          authStatus.textContent = 'Inicia sesión con Google para comprar tu entrada.';
+          googleLoginButton.classList.remove('hidden');
+          checkoutFormWrap.classList.add('hidden');
+        }
+      }
+
       const eventCards = document.querySelector('#eventCards');
       const selectedEventCard = document.querySelector('#selectedEventCard');
       const summaryType = document.querySelector('#summaryType');
@@ -351,6 +409,11 @@
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
+        if (!currentSession) {
+          showResult('Inicia sesión con Google antes de comprar.', false);
+          return;
+        }
+
         if (!selectedEvent) {
           showResult('Primero elige un evento.', false);
           return;
@@ -387,7 +450,10 @@
         try {
           const response = await fetch('/api/crear-ticket', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${currentSession?.access_token || ''}`
+            },
             body: JSON.stringify(payload)
           });
 
@@ -411,6 +477,7 @@
 
       cargarEventos();
       cargarEstadisticas();
+      initAuth();
     </script>
   </body>
 </html>

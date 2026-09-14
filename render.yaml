@@ -2,7 +2,8 @@ services:
   - type: web
     name: whineup-evento
     env: node
-    buildCommand: npm ci
+    plan: starter
+    buildCommand: npm ci --omit=dev
     startCommand: npm start
     healthCheckPath: /api/salud
     envVars:
@@ -10,23 +11,35 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: TRUST_PROXY
+        value: true
+
+      # sync: false  =>  el valor se introduce a mano en el panel de Render
+      #                  y nunca queda escrito en el repositorio.
+      - key: PUBLIC_URL
+        sync: false
+      - key: TICKET_SIGNING_SECRET
+        sync: false
       - key: STAFF_USERS
         sync: false
+
       - key: FIREBASE_PROJECT_ID
         sync: false
       - key: FIREBASE_CLIENT_EMAIL
         sync: false
       - key: FIREBASE_PRIVATE_KEY
         sync: false
-      - key: SMTP_HOST
+
+      - key: EMAILJS_SERVICE_ID
         sync: false
-      - key: SMTP_PORT
-        value: 587
-      - key: SMTP_SECURE
-        value: false
-      - key: SMTP_USER
+      - key: EMAILJS_PUBLIC_KEY
         sync: false
-      - key: SMTP_PASSWORD
+      - key: EMAILJS_PRIVATE_KEY
         sync: false
-      - key: SMTP_FROM
+      - key: EMAILJS_TEMPLATE_COMPRA
+        sync: false
+      - key: EMAILJS_TEMPLATE_TICKET
+        sync: false
+
+      - key: PAYMENT_PHONE
         sync: false

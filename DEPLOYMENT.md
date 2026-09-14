@@ -1,57 +1,99 @@
-# WhineUp: checklist de publicación
+# Checklist de publicacion
 
-## 1. Infraestructura
+## 0. Requisitos
 
-1. Crea un servicio Node en Render, Railway o VPS.
-2. Conecta el repositorio y ejecuta `npm ci` como build y `npm start` como start.
-3. Configura un dominio propio con HTTPS.
-4. Define todas las variables de `.env.example` en el panel del proveedor. No subas `.env`.
-5. Comprueba `https://TU-DOMINIO/api/salud` y configura el health check.
+Node.js 18.17 o superior. Comprueba con `node -v`.
 
-`render.yaml` incluye una configuración inicial para Render.
-
-## 2. Firestore y respaldos
-
-1. Crea un proyecto Firebase y una cuenta de servicio.
-2. Configura `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY`.
-3. Crea la colección `tickets` y restringe el acceso público. El servidor usa Firebase Admin.
-4. Programa exportaciones y verifica la restauración antes del primer evento.
-5. En producción la app se detiene si Firestore no está configurado; no se permite el almacenamiento en memoria.
-
-## 3. Pagos
-
-El flujo actual soporta dos operaciones seguras:
-
-- PayPal: recibe una referencia y requiere confirmación del administrador.
-- Número/transferencia: recibe el comprobante o número y requiere confirmación del administrador.
-
-Un ticket queda en `PENDIENTE_PAGO` y su QR es rechazado por el scanner hasta que un administrador lo confirme desde el panel. Para automatizar PayPal, hay que crear una aplicación PayPal, guardar sus credenciales en variables de entorno y conectar un webhook verificado; nunca se debe confiar en una referencia enviada desde el navegador.
-
-## 4. Email
-
-Configura SMTP real con una contraseña de aplicación o proveedor transaccional. Verifica SPF, DKIM y DMARC del dominio. Haz una compra de prueba y confirma recepción, spam y adjunto QR.
-
-## 5. Seguridad y administración
-
-Genera un hash de contraseña sin guardar la contraseña en el repositorio:
-
-```powershell
-node -e "const c=require('crypto');const p=process.argv[1];const s=c.randomBytes(16).toString('hex');console.log('scrypt$'+s+'$'+c.scryptSync(p,s,64).toString('hex'))" "CAMBIA ESTA CONTRASEÑA"
+```bash
+npm install
 ```
 
-Usa el resultado en `STAFF_USERS` con `passwordHash`. Cambia la contraseña de desarrollo antes de publicar. Revisa que el admin use HTTPS, activa backups y rota credenciales si fueron compartidas durante pruebas.
+## 1. Secretos
 
-## 6. QR y acceso
+Ninguno de estos valores debe acabar en un commit. Generalos y pegalos en el
+panel de variables de entorno de tu proveedor.
 
-1. Prueba cámara, permisos y conexión desde el teléfono real del staff.
-2. Verifica que un ticket pagado entre una sola vez.
-3. Verifica que un ticket pendiente, inexistente o repetido sea rechazado.
-4. Prepara un procedimiento offline para caída de internet y un responsable de soporte.
+```bash
+npm run secreto
+npm run staff -- admin@tudominio.com "UNA CONTRASENA LARGA" admin "Tu nombre"
+```
 
-## 7. Legal y operación
+El primero imprime `TICKET_SIGNING_SECRET`, el segundo `STAFF_USERS`.
 
-Publica términos, privacidad, política de reembolso, datos de contacto y datos fiscales según el país donde vendas. Define quién confirma pagos, quién atiende reclamos, cuánto tiempo conserva datos y cómo se revocan entradas.
+Si cambias `TICKET_SIGNING_SECRET`, **todos los QR ya emitidos dejan de
+funcionar**. Guardalo bien.
 
-## Criterio de salida
+## 2. Firestore
 
-No publiques hasta completar: dominio HTTPS, Firestore real, PayPal o conciliación manual probada, SMTP real, usuarios con hash, respaldo restaurado y simulacro completo de compra-confirmación-validación.
+1. Crea un proyecto en Firebase y, dentro, una base de datos Firestore.
+2. **Configuracion del proyecto -> Cuentas de servicio -> Generar clave
+   privada**. El archivo descargado no se sube al repositorio.
+3. Copia `project_id`, `client_email` y `private_key` a las variables
+   `FIREBASE_*`.
+4. Publica las reglas para que nadie acceda directamente a la base de datos:
+
+```bash
+firebase deploy --only firestore:rules
+```
+
+5. Activa las exportaciones programadas y **restaura una** en un proyecto de
+   pruebas antes del evento.
+
+En produccion el servidor **no arranca** sin Firestore: es lo que garantiza que
+una entrada se use una sola vez.
+
+## 3. EmailJS
+
+Sigue [EMAILJS.md](EMAILJS.md). Resumen: crear el servicio, activar el acceso
+desde servidor en *Account -> Security*, crear las dos plantillas y copiar los
+cinco identificadores.
+
+## 4. Despliegue
+
+### Render
+
+`render.yaml` ya esta preparado. Conecta el repositorio y rellena en el panel
+las variables marcadas como `sync: false`.
+
+### Vercel
+
+`vercel.json` enruta todo a `api/index.js`. Define las mismas variables en
+*Settings -> Environment Variables*.
+
+En ambos casos: dominio propio con HTTPS, y `PUBLIC_URL` apuntando a el sin
+barra final.
+
+## 5. Comprobaciones antes de abrir la venta
+
+```bash
+curl https://TU-DOMINIO/api/salud
+```
+
+Debe responder `"persistencia": "firestore"` y `"emailjs": true`.
+
+Despues, el ensayo completo:
+
+1. Compra de prueba desde la web publica.
+2. Llega el correo de "solicitud recibida", **sin QR**.
+3. Entra en `/login`, confirma el pago desde el panel.
+4. Llega el segundo correo, **con el QR visible**.
+5. Escanea ese QR desde el panel: **permitido**.
+6. Escanealo otra vez: **denegado, ya utilizado**.
+7. Anula otra entrada y comprueba que su QR queda rechazado.
+8. Abre `/scanner-dashboard` sin sesion: redirige al login.
+
+Si el paso 6 no falla, no publiques.
+
+## 6. El dia del evento
+
+- Telefonos del staff cargados y con datos moviles propios, sin depender del
+  wifi del local.
+- Alguien con acceso al panel de administracion disponible por telefono.
+- Lista impresa de respaldo por si se cae la conexion.
+- Un procedimiento acordado para entradas duplicadas en la puerta: quien decide
+  y con que criterio.
+
+## 7. Legal
+
+Completa `terminos.html` y `privacidad.html` antes de cobrar. Ver
+[RECOMENDACIONES.md](RECOMENDACIONES.md), seccion final.

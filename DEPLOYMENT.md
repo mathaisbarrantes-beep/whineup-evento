@@ -10,13 +10,15 @@
 
 `render.yaml` incluye una configuración inicial para Render.
 
-## 2. Firestore y respaldos
+## 2. Supabase (base de datos, autenticación y respaldos)
 
-1. Crea un proyecto Firebase y una cuenta de servicio.
-2. Configura `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY`.
-3. Crea la colección `tickets` y restringe el acceso público. El servidor usa Firebase Admin.
-4. Programa exportaciones y verifica la restauración antes del primer evento.
-5. En producción la app se detiene si Firestore no está configurado; no se permite el almacenamiento en memoria.
+1. Crea un proyecto en https://supabase.com/dashboard/projects, nombre `whineup-evento`.
+2. Copia el contenido de `supabase/schema.sql` y pégalo en el SQL Editor del proyecto; ejecútalo una sola vez.
+3. Configura `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Settings → API → Project API keys → `service_role`, secreta) y `SUPABASE_ANON_KEY` (la clave `anon`/`public`, esa sí puede quedar visible en el navegador).
+4. En Authentication → Providers, activa **Google** y sigue el asistente de Supabase para configurar el cliente OAuth de Google Cloud. En Authentication → URL Configuration, agrega la URL real del sitio en "Site URL" y "Redirect URLs".
+5. Crea las cuentas de staff/admin manualmente en Authentication → Users → "Add user" (correo + contraseña). Después, en el SQL Editor, actualiza su rol: `update public.perfiles set rol = 'admin' where id = '<uuid del usuario>';` (o `'staff'`).
+6. Programa respaldos automáticos en Settings → Database → Backups y verifica una restauración antes del primer evento.
+7. En producción, si `SUPABASE_URL` o `SUPABASE_SERVICE_ROLE_KEY` faltan, las rutas que dependen de la base responden error en vez de guardar nada en memoria — no hay modo de respaldo silencioso.
 
 ## 3. Pagos
 

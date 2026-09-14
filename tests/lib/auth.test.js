@@ -23,7 +23,7 @@ function fakeSupabase({ getUserResult, perfilResult }) {
           return {
             eq() {
               return {
-                single: async () => perfilResult
+                maybeSingle: async () => perfilResult
               };
             }
           };

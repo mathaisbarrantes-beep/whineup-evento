@@ -2,7 +2,6 @@ require("dotenv").config();
 
 const express = require("express");
 const path = require("path");
-const crypto = require("crypto");
 const QRCode = require("qrcode");
 const nodemailer = require("nodemailer");
 const { buildSupabaseClient } = require("./lib/supabaseClient");

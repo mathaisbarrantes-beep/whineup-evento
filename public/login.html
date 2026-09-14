@@ -6,6 +6,7 @@
     <title>Login de personal | WhineUp</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/theme.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
   <body class="flex min-h-screen items-center justify-center bg-black px-4 text-white">
     <div class="w-full max-w-md rounded-[28px] border border-white/10 bg-white/5 p-6 shadow-2xl shadow-violet-500/10 backdrop-blur-xl sm:p-8">
@@ -41,42 +42,45 @@
       const statusMessage = document.querySelector('#statusMessage');
       const submitButton = loginForm.querySelector('button');
 
+      let supabaseClient = null;
+
       function showStatus(message, isError = true) {
         statusMessage.textContent = message;
         statusMessage.className = `mt-5 rounded-2xl p-3 text-sm ${isError ? 'border border-red-500/30 bg-red-500/10 text-red-100' : 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100'}`;
         statusMessage.classList.remove('hidden');
       }
 
-      async function verifySession() {
-        try {
-          const response = await fetch('/api/session-status');
-          const data = await response.json();
-          if (data.authenticated) {
-            window.location.href = '/scanner-dashboard';
-          }
-        } catch (error) {
-          console.error('No se pudo verificar sesión:', error);
+      async function initSupabase() {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        if (!config.supabaseUrl || !config.supabaseAnonKey) {
+          showStatus('El login no está disponible todavía.', true);
+          submitButton.disabled = true;
+          return;
+        }
+        supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+          window.location.href = '/scanner-dashboard';
         }
       }
 
       loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+        if (!supabaseClient) return;
+
         submitButton.disabled = true;
         submitButton.textContent = 'Validando...';
 
         try {
-          const response = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              username: document.querySelector('#username').value.trim(),
-              password: document.querySelector('#password').value
-            })
+          const { error } = await supabaseClient.auth.signInWithPassword({
+            email: document.querySelector('#username').value.trim(),
+            password: document.querySelector('#password').value
           });
 
-          const data = await response.json();
-          if (!response.ok) {
-            showStatus(data.mensaje || 'Credenciales incorrectas.', true);
+          if (error) {
+            showStatus('Credenciales incorrectas.', true);
             return;
           }
 
@@ -92,7 +96,7 @@
         }
       });
 
-      verifySession();
+      initSupabase();
     </script>
   </body>
 </html>

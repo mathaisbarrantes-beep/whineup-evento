@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/theme.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   </head>
   <body class="min-h-screen bg-black text-white">
     <header class="border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
@@ -108,6 +109,33 @@
     </main>
 
     <script>
+      let supabaseClient = null;
+      let currentSession = null;
+
+      async function initSupabase() {
+        const response = await fetch('/api/config');
+        const config = await response.json();
+        if (!config.supabaseUrl || !config.supabaseAnonKey) {
+          window.location.href = '/login';
+          return false;
+        }
+        supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        currentSession = session;
+        return true;
+      }
+
+      function authHeaders() {
+        return currentSession ? { Authorization: `Bearer ${currentSession.access_token}` } : {};
+      }
+
+      async function authFetch(url, options = {}) {
+        return fetch(url, {
+          ...options,
+          headers: { ...(options.headers || {}), ...authHeaders() }
+        });
+      }
+
       const resultPanel = document.querySelector('#resultPanel');
       const resultIcon = document.querySelector('#resultIcon');
       const resultStatus = document.querySelector('#resultStatus');
@@ -154,8 +182,13 @@
       }
 
       async function checkSession() {
+        if (!currentSession) {
+          window.location.href = '/login';
+          return;
+        }
+
         try {
-          const response = await fetch('/api/session-status');
+          const response = await authFetch('/api/session-status');
           const data = await response.json();
 
           if (!data.authenticated) {
@@ -215,7 +248,7 @@
 
       async function loadPendingPayments() {
         try {
-          const response = await fetch('/api/admin/pagos-pendientes');
+          const response = await authFetch('/api/admin/pagos-pendientes');
           const data = await response.json();
           if (!response.ok) throw new Error(data.mensaje || 'No se pudieron cargar los pagos.');
           renderPendingPayments(data.tickets || []);
@@ -259,7 +292,7 @@
 
       async function loadGeneratedTickets() {
         try {
-          const response = await fetch('/api/admin/entradas');
+          const response = await authFetch('/api/admin/entradas');
           const data = await response.json();
           if (!response.ok) throw new Error(data.mensaje || 'No se pudieron cargar las entradas.');
           renderGeneratedTickets(data.tickets || []);
@@ -270,7 +303,7 @@
 
       async function confirmPayment(ticketId) {
         try {
-          const response = await fetch(`/api/admin/confirmar-pago/${encodeURIComponent(ticketId)}`, { method: 'POST' });
+          const response = await authFetch(`/api/admin/confirmar-pago/${encodeURIComponent(ticketId)}`, { method: 'POST' });
           const data = await response.json();
           paymentApprovalResult.textContent = data.mensaje || 'No se pudo confirmar el pago.';
           paymentApprovalResult.className = `mt-3 rounded-xl p-3 text-xs ${response.ok ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border border-red-500/30 bg-red-500/10 text-red-100'}`;
@@ -285,7 +318,7 @@
 
       async function validateTicket(ticketId) {
         try {
-          const response = await fetch('/api/validar-ticket', {
+          const response = await authFetch('/api/validar-ticket', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ticketId })
@@ -364,7 +397,7 @@
         };
 
         try {
-          const response = await fetch('/api/admin/crear-qr', {
+          const response = await authFetch('/api/admin/crear-qr', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -406,7 +439,7 @@
         event.preventDefault();
         const ticketId = document.querySelector('#paymentTicketId').value.trim();
         try {
-          const response = await fetch(`/api/admin/confirmar-pago/${encodeURIComponent(ticketId)}`, { method: 'POST' });
+          const response = await authFetch(`/api/admin/confirmar-pago/${encodeURIComponent(ticketId)}`, { method: 'POST' });
           const data = await response.json();
           paymentApprovalResult.textContent = data.mensaje || 'No se pudo confirmar el pago.';
           paymentApprovalResult.className = `mt-3 rounded-xl p-3 text-xs ${response.ok ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border border-red-500/30 bg-red-500/10 text-red-100'}`;
@@ -424,10 +457,8 @@
 
       async function logout() {
         try {
-          await fetch('/api/logout', { method: 'POST' });
-          window.location.href = '/login';
-        } catch (error) {
-          console.error('Error cerrar sesión:', error);
+          if (supabaseClient) await supabaseClient.auth.signOut();
+        } finally {
           window.location.href = '/login';
         }
       }
@@ -438,9 +469,13 @@
         startScanner();
       });
 
-      checkSession();
-      loadAdminEvents();
-      startScanner();
+      (async () => {
+        const ready = await initSupabase();
+        if (!ready) return;
+        checkSession();
+        loadAdminEvents();
+        startScanner();
+      })();
     </script>
   </body>
 </html>

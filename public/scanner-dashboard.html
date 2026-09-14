@@ -113,16 +113,30 @@
       let currentSession = null;
 
       async function initSupabase() {
-        const response = await fetch('/api/config');
-        const config = await response.json();
-        if (!config.supabaseUrl || !config.supabaseAnonKey) {
-          window.location.href = '/login';
+        try {
+          const response = await fetch('/api/config');
+          const config = await response.json();
+          if (!config.supabaseUrl || !config.supabaseAnonKey) {
+            window.location.href = '/login';
+            return false;
+          }
+          supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+
+          // supabase-js renueva el token solo, en segundo plano. Sin esto,
+          // currentSession se queda con el access_token del arranque y a media
+          // jornada authFetch empieza a mandar un JWT vencido (401).
+          supabaseClient.auth.onAuthStateChange((_event, session) => {
+            currentSession = session;
+          });
+
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          currentSession = session;
+          return true;
+        } catch (error) {
+          console.error('No se pudo inicializar el panel:', error);
+          cameraState.textContent = 'No se pudo cargar el panel. Revisa la conexión y recarga la página.';
           return false;
         }
-        supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        currentSession = session;
-        return true;
       }
 
       function authHeaders() {

@@ -51,18 +51,24 @@
       }
 
       async function initSupabase() {
-        const response = await fetch('/api/config');
-        const config = await response.json();
-        if (!config.supabaseUrl || !config.supabaseAnonKey) {
-          showStatus('El login no está disponible todavía.', true);
-          submitButton.disabled = true;
-          return;
-        }
-        supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+        try {
+          const response = await fetch('/api/config');
+          const config = await response.json();
+          if (!config.supabaseUrl || !config.supabaseAnonKey) {
+            showStatus('El login no está disponible todavía.', true);
+            submitButton.disabled = true;
+            return;
+          }
+          supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (session) {
-          window.location.href = '/scanner-dashboard';
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session) {
+            window.location.href = '/scanner-dashboard';
+          }
+        } catch (error) {
+          console.error('No se pudo inicializar el login:', error);
+          showStatus('No se pudo cargar el login. Revisa la conexión y recarga la página.', true);
+          submitButton.disabled = true;
         }
       }
 

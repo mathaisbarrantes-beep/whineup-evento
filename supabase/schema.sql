@@ -12,12 +12,6 @@ create table public.perfiles (
 
 alter table public.perfiles enable row level security;
 
-create policy "perfiles_select" on public.perfiles
-  for select using (
-    auth.uid() = id
-    or exists (select 1 from public.perfiles p where p.id = auth.uid() and p.rol in ('staff','admin'))
-  );
-
 -- Crea el perfil solo, la primera vez que alguien inicia sesión
 create or replace function public.manejar_nuevo_usuario()
 returns trigger
@@ -48,6 +42,16 @@ set search_path = public
 as $$
   select rol from public.perfiles where id = auth.uid();
 $$;
+
+-- Va después de rol_actual() porque la usa. Consultar public.perfiles desde
+-- una política SOBRE public.perfiles provoca 42P17 ("infinite recursion
+-- detected in policy for relation"); rol_actual() es security definer y por
+-- eso no vuelve a disparar RLS.
+create policy "perfiles_select" on public.perfiles
+  for select using (
+    auth.uid() = id
+    or public.rol_actual() in ('staff','admin')
+  );
 
 -- ========== EVENTOS ==========
 

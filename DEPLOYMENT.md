@@ -35,13 +35,9 @@ Configura SMTP real con una contraseña de aplicación o proveedor transaccional
 
 ## 5. Seguridad y administración
 
-Genera un hash de contraseña sin guardar la contraseña en el repositorio:
+Las cuentas de staff y admin viven en Supabase Auth (ver el paso 5 de la sección 2): se crean en Authentication → Users y su rol se asigna en `public.perfiles`. La aplicación no guarda contraseñas ni hashes propios, así que no hay nada que generar ni que poner en variables de entorno.
 
-```powershell
-node -e "const c=require('crypto');const p=process.argv[1];const s=c.randomBytes(16).toString('hex');console.log('scrypt$'+s+'$'+c.scryptSync(p,s,64).toString('hex'))" "CAMBIA ESTA CONTRASEÑA"
-```
-
-Usa el resultado en `STAFF_USERS` con `passwordHash`. Cambia la contraseña de desarrollo antes de publicar. Revisa que el admin use HTTPS, activa backups y rota credenciales si fueron compartidas durante pruebas.
+Revisa que el panel de admin use HTTPS, exige contraseñas fuertes en las cuentas de staff, activa los respaldos de Supabase y rota la `SUPABASE_SERVICE_ROLE_KEY` si fue compartida durante pruebas. La `service_role` nunca debe llegar al navegador: solo el servidor la usa.
 
 ## 6. QR y acceso
 
@@ -56,4 +52,4 @@ Publica términos, privacidad, política de reembolso, datos de contacto y datos
 
 ## Criterio de salida
 
-No publiques hasta completar: dominio HTTPS, Firestore real, PayPal o conciliación manual probada, SMTP real, usuarios con hash, respaldo restaurado y simulacro completo de compra-confirmación-validación.
+No publiques hasta completar: dominio HTTPS, proyecto Supabase real con `schema.sql` ejecutado y al menos un evento creado, cuentas de staff/admin creadas en Authentication → Users con su rol asignado, PayPal o conciliación manual probada, SMTP real, respaldo restaurado y simulacro completo de compra-confirmación-validación.

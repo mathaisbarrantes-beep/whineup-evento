@@ -10,13 +10,12 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: STAFF_USERS
+      # Supabase (Postgres + Auth) para persistencia real.
+      - key: SUPABASE_URL
         sync: false
-      - key: FIREBASE_PROJECT_ID
+      - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
-      - key: FIREBASE_CLIENT_EMAIL
-        sync: false
-      - key: FIREBASE_PRIVATE_KEY
+      - key: SUPABASE_ANON_KEY
         sync: false
       - key: SMTP_HOST
         sync: false

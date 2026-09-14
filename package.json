@@ -4,6 +4,9 @@
   "private": true,
   "description": "Sistema de entradas con codigo QR para eventos",
   "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",

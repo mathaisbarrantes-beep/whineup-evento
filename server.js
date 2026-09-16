@@ -36,6 +36,25 @@ const CATEGORIAS_VALIDAS = ["General", "VIP"];
 // a medias, con parte de las entradas creadas y parte de los correos sin salir.
 const MAX_INVITACIONES = 20;
 
+const ERRORES_CORTESIA = {
+  ENTRADA_NO_ENCONTRADA: [404, "Entrada no encontrada."],
+  EVENTO_SIN_CORTESIA: [400, "El evento de esta entrada no tiene cortesía configurada."],
+  YA_TIENE_CORTESIA: [409, "Esta entrada ya tiene cortesía."],
+  CORTESIA_ENTREGADA: [409, "La cortesía ya se entregó: no se puede quitar."],
+  CORTESIA_INCOMPLETA: [400, "Para la cortesía hacen falta el texto y la fecha límite, o ninguno de los dos."],
+  CORTESIA_LARGA: [400, "La cortesía puede tener hasta 60 caracteres."],
+  CORTESIA_FECHA: [400, "La fecha límite de la cortesía no es válida."]
+};
+
+// Responde un error conocido de cortesía. Devuelve false si no lo es, para
+// que la ruta siga con su 500.
+function responderErrorCortesia(res, error) {
+  const conocido = error && ERRORES_CORTESIA[error.error];
+  if (!conocido) return false;
+  res.status(conocido[0]).json({ ok: false, mensaje: conocido[1] });
+  return true;
+}
+
 function correoValido(correo) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
 }
@@ -126,7 +145,8 @@ app.get("/api/session-status", async (req, res) => {
 app.get("/api/admin/eventos", requireRole("admin"), async (req, res) => {
   try {
     const eventos = await eventosRepo.listarTodos();
-    res.json({ ok: true, eventos });
+    const conteos = await Promise.all(eventos.map((ev) => entradasRepo.contarCortesias(ev.id)));
+    res.json({ ok: true, eventos: eventos.map((ev, i) => ({ ...ev, cortesias: conteos[i] })) });
   } catch (error) {
     console.error("Error al consultar eventos del panel:", error);
     res.status(500).json({ ok: false, mensaje: "No se pudieron consultar los eventos." });
@@ -151,10 +171,12 @@ app.post("/api/admin/eventos", requireRole("admin"), async (req, res) => {
       categoria,
       descripcion: String(req.body.descripcion || "").trim(),
       cupo_maximo: req.body.cupoMaximo ? Number(req.body.cupoMaximo) : null,
-      creado_por: req.usuario.id
+      creado_por: req.usuario.id,
+      ...cortesiaDesdeFormulario(req.body.cortesia, req.body.cortesiaHasta)
     });
     res.status(201).json({ ok: true, evento });
   } catch (error) {
+    if (responderErrorCortesia(res, error)) return;
     console.error("Error al crear evento:", error);
     res.status(500).json({ ok: false, mensaje: "No se pudo crear el evento." });
   }
@@ -177,10 +199,14 @@ app.put("/api/admin/eventos/:id", requireRole("admin"), async (req, res) => {
     if (req.body.descripcion !== undefined) cambios.descripcion = String(req.body.descripcion).trim();
     if (req.body.cupoMaximo !== undefined) cambios.cupo_maximo = req.body.cupoMaximo ? Number(req.body.cupoMaximo) : null;
     if (req.body.activo !== undefined) cambios.activo = Boolean(req.body.activo);
+    if (req.body.cortesia !== undefined || req.body.cortesiaHasta !== undefined) {
+      Object.assign(cambios, cortesiaDesdeFormulario(req.body.cortesia, req.body.cortesiaHasta));
+    }
 
     const evento = await eventosRepo.actualizar(req.params.id, cambios);
     res.json({ ok: true, evento });
   } catch (error) {
+    if (responderErrorCortesia(res, error)) return;
     console.error("Error al actualizar evento:", error);
     res.status(500).json({ ok: false, mensaje: "No se pudo actualizar el evento." });
   }
@@ -484,6 +510,20 @@ app.get("/api/admin/entradas", requireRole("admin", "staff"), async (req, res) =
   }
 });
 
+// Dar o quitar la cortesía de una entrada puntual. Es una decisión de
+// negocio, así que solo el admin.
+app.put("/api/admin/entradas/:id/cortesia", requireRole("admin"), async (req, res) => {
+  try {
+    const dar = req.body.dar === true;
+    const ticket = await entradasRepo.ponerCortesia(String(req.params.id || ""), dar);
+    res.json({ ok: true, ticket, mensaje: dar ? `Cortesía dada: ${ticket.cortesia}.` : "Cortesía quitada." });
+  } catch (error) {
+    if (responderErrorCortesia(res, error)) return;
+    console.error("Error al cambiar la cortesía:", error);
+    res.status(500).json({ ok: false, mensaje: "No se pudo cambiar la cortesía." });
+  }
+});
+
 app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) => {
   try {
     const nombre = String(req.body.nombre || "Invitado").trim();
@@ -598,7 +638,9 @@ app.get("/api/ticket/:ticketId", requireSupabase, async (req, res) => {
         tipoEntrada: ticket.tipoEntrada,
         creadoEn: ticket.creadoEn,
         precio: ticket.precio,
-        pagado: ticket.pagado
+        pagado: ticket.pagado,
+        cortesia: ticket.cortesia,
+        cortesiaEntregada: Boolean(ticket.cortesiaEntregadaEn)
       }
     });
   } catch (error) {
@@ -615,10 +657,39 @@ app.post("/api/validar-ticket", requireRole("staff", "admin"), async (req, res) 
     }
 
     const resultado = await entradasRepo.validar(ticketId);
-    res.status(resultado.permitido ? 200 : 403).json({ ok: true, ...resultado });
+    const cortesia = resultado.permitido ? await cortesiaPendiente(ticketId) : null;
+    res.status(resultado.permitido ? 200 : 403).json({ ok: true, ...resultado, cortesia });
   } catch (error) {
     console.error("Error al validar ticket:", error);
     res.status(500).json({ ok: false, permitido: false, mensaje: "No se pudo validar el ticket." });
+  }
+});
+
+// Solo informa. La entrada ya quedó marcada: si esta lectura falla, responder
+// 500 haría que el siguiente escaneo diga "ya utilizado" a alguien que nunca
+// vio el "Adelante".
+async function cortesiaPendiente(ticketId) {
+  try {
+    const ticket = await entradasRepo.obtenerPorId(ticketId);
+    return ticket && ticket.cortesia && !ticket.cortesiaEntregadaEn ? ticket.cortesia : null;
+  } catch (error) {
+    console.error("No se pudo leer la cortesía tras validar:", error);
+    return null;
+  }
+}
+
+app.post("/api/canjear-cortesia", requireRole("staff", "admin"), async (req, res) => {
+  try {
+    const ticketId = String(req.body.ticketId || "").trim();
+    if (!ticketId) {
+      return res.status(400).json({ ok: false, permitido: false, mensaje: "QR no válido." });
+    }
+
+    const resultado = await entradasRepo.canjearCortesia(ticketId, req.usuario.id);
+    res.status(resultado.permitido ? 200 : 403).json({ ok: true, ...resultado });
+  } catch (error) {
+    console.error("Error al canjear cortesía:", error);
+    res.status(500).json({ ok: false, permitido: false, mensaje: "No se pudo canjear la cortesía." });
   }
 });
 

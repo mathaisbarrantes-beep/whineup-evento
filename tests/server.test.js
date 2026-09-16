@@ -144,6 +144,25 @@ test('DELETE /api/admin/eventos/:id/banner returns 401 without a token', async (
   assert.equal(res.body.ok, false);
 });
 
+test('POST /api/canjear-cortesia returns 401 without a token', async () => {
+  const res = await request(app).post('/api/canjear-cortesia').send({ ticketId: 'x' });
+  assert.equal(res.status, 401);
+  assert.equal(res.body.ok, false);
+});
+
+test('POST /api/canjear-cortesia returns 503 with a token when unconfigured', async () => {
+  const res = await request(app).post('/api/canjear-cortesia').set('Authorization', 'Bearer fake').send({ ticketId: 'x' });
+  assert.equal(res.status, 503);
+});
+
+test('PUT /api/admin/entradas/:id/cortesia returns 401 without a token', async () => {
+  const res = await request(app)
+    .put('/api/admin/entradas/3f7c1b2e-9a4d-4f01-8b7e-2c5d6a8f1e40/cortesia')
+    .send({ dar: true });
+  assert.equal(res.status, 401);
+  assert.equal(res.body.ok, false);
+});
+
 test('POST /api/admin/usuarios/invitar returns 401 without a token', async () => {
   const res = await request(app).post('/api/admin/usuarios/invitar').send({ correo: 'a@b.com' });
   assert.equal(res.status, 401);

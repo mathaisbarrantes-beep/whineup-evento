@@ -12,6 +12,9 @@ services:
         value: 10000
       - key: PUBLIC_URL
         sync: false
+      # Numero de SINPE Movil al que paga el comprador.
+      - key: PAYMENT_PHONE
+        sync: false
       # Supabase (Postgres + Auth) para persistencia real.
       - key: SUPABASE_URL
         sync: false

@@ -73,3 +73,22 @@ test('GET /api/ticket/:id/qr.png rejects a non-uuid instead of drawing it', asyn
   const res = await request(app).get('/api/ticket/no-soy-un-uuid/qr.png');
   assert.equal(res.status, 404);
 });
+
+// El numero del SINPE se lee por peticion, no al arrancar, para poder cambiarlo
+// en el panel de Vercel sin volver a desplegar.
+test('GET /api/config exposes paymentPhone as null when it is not set', async () => {
+  delete process.env.PAYMENT_PHONE;
+  const res = await request(app).get('/api/config');
+  assert.equal(res.status, 200);
+  assert.equal(res.body.paymentPhone, null);
+});
+
+test('GET /api/config returns the SINPE number when it is set', async () => {
+  process.env.PAYMENT_PHONE = '+506 8888-1234';
+  try {
+    const res = await request(app).get('/api/config');
+    assert.equal(res.body.paymentPhone, '+506 8888-1234');
+  } finally {
+    delete process.env.PAYMENT_PHONE;
+  }
+});

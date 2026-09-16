@@ -79,7 +79,10 @@ app.get("/api/config", (req, res) => {
   res.json({
     ok: true,
     supabaseUrl: process.env.SUPABASE_URL || null,
-    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null
+    supabaseAnonKey: process.env.SUPABASE_ANON_KEY || null,
+    // El numero al que se hace el SINPE. Sale de aqui y no del HTML para poder
+    // cambiarlo sin desplegar, y para no dejarlo escrito en el repositorio.
+    paymentPhone: process.env.PAYMENT_PHONE || null
   });
 });
 
@@ -211,8 +214,9 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
     const telefono = String(req.body.telefono || "").trim();
     const eventoId = String(req.body.eventoId || "").trim();
     const tipoEntrada = String(req.body.tipoEntrada || "General").trim();
-    const paymentMethod = String(req.body.paymentMethod || "").trim().toLowerCase();
-    const paymentReference = String(req.body.paymentReference || "").trim();
+    // paymentReference es el nombre viejo del campo: lo seguimos aceptando por
+    // si alguien tiene la pagina anterior abierta en una pestana.
+    const comprobante = String(req.body.comprobante || req.body.paymentReference || "").trim();
 
     if (!nombre || !correo || !telefono || !correoValido(correo) || !eventoId) {
       return res.status(400).json({ ok: false, mensaje: "Completa los datos y selecciona un evento válido." });
@@ -223,12 +227,12 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
       return res.status(400).json({ ok: false, mensaje: "Completa los datos y selecciona un evento válido." });
     }
 
-    if (!paymentMethod || !["paypal", "numero"].includes(paymentMethod)) {
-      return res.status(400).json({ ok: false, mensaje: "Selecciona un método de pago válido: PayPal o número de pago." });
+    if (!comprobante) {
+      return res.status(400).json({ ok: false, mensaje: "Escribe el número de comprobante del SINPE para generar la entrada." });
     }
 
-    if (!paymentReference) {
-      return res.status(400).json({ ok: false, mensaje: "Debes incluir la referencia del pago para generar la entrada." });
+    if (comprobante.length > 60) {
+      return res.status(400).json({ ok: false, mensaje: "El número de comprobante es demasiado largo." });
     }
 
     const ticket = await entradasRepo.crear({
@@ -239,8 +243,10 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
       telefono,
       tipo_entrada: tipoEntrada,
       precio: evento.precio,
-      metodo_pago: paymentMethod,
-      referencia_pago: paymentReference,
+      // Unico metodo de pago. Se fija aqui y no se toma del navegador: no hay
+      // nada que elegir, asi que tampoco hay nada que falsear.
+      metodo_pago: "sinpe",
+      referencia_pago: comprobante,
       pagado: false,
       estado: "PENDIENTE_PAGO"
     });

@@ -95,7 +95,7 @@ test('validar still reaches Supabase for a well-formed uuid', async () => {
 test('mapEntradaRow maps snake_case columns and the joined event name to the existing frontend shape', () => {
   const row = {
     id: 't1', evento_id: 'e1', usuario_id: 'u1', nombre: 'Ana', correo: 'ana@x.com',
-    telefono: '8888-0000', tipo_entrada: 'General', precio: 45000, metodo_pago: 'paypal',
+    telefono: '8888-0000', tipo_entrada: 'General', precio: 45000, metodo_pago: 'sinpe',
     referencia_pago: 'REF123', pagado: true, estado: 'PENDIENTE', pago_confirmado_por: 'staff1',
     pago_confirmado_en: '2026-01-01T00:00:00Z', ingresado_en: null, generado_por: null,
     creado_en: '2026-01-01T00:00:00Z', eventos: { nombre: 'HALLOWEEN PARTY' }
@@ -103,7 +103,7 @@ test('mapEntradaRow maps snake_case columns and the joined event name to the exi
   assert.deepEqual(mapEntradaRow(row), {
     id: 't1', eventoId: 'e1', evento: 'HALLOWEEN PARTY', usuarioId: 'u1', nombre: 'Ana',
     correo: 'ana@x.com', telefono: '8888-0000', tipoEntrada: 'General', precio: 45000,
-    metodoPago: 'paypal', referenciaPago: 'REF123', pagado: true, estado: 'PENDIENTE',
+    metodoPago: 'sinpe', referenciaPago: 'REF123', pagado: true, estado: 'PENDIENTE',
     pagoConfirmadoPor: 'staff1', pagoConfirmadoEn: '2026-01-01T00:00:00Z', ingresadoEn: null,
     generadoPor: null, creadoEn: '2026-01-01T00:00:00Z'
   });

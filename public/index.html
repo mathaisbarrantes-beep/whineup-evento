@@ -170,33 +170,21 @@
               </div>
 
               <div>
-                <p class="mb-2 block text-sm font-medium text-slate-200">Método de pago</p>
-                <div class="grid gap-3 md:grid-cols-2">
-                  <label class="payment-option flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-[#121212]/80 p-3 text-sm text-slate-200">
-                    <input type="radio" name="paymentMethod" value="paypal" checked class="mt-1 accent-white" />
-                    <span>
-                      <span class="block font-semibold text-white">PayPal</span>
-                      <span class="block text-xs text-slate-400">paypal@whineup.cr</span>
-                    </span>
-                  </label>
-
-                  <label class="payment-option flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-[#121212]/80 p-3 text-sm text-slate-200">
-                    <input type="radio" name="paymentMethod" value="numero" class="mt-1 accent-white" />
-                    <span>
-                      <span class="block font-semibold text-white">Número</span>
-                      <span class="block text-xs text-slate-400">+506 8888-0000</span>
-                    </span>
-                  </label>
+                <p class="mb-2 block text-sm font-medium text-slate-200">Pago por SINPE Móvil</p>
+                <div class="rounded-2xl border border-white/10 bg-[#121212]/80 p-4">
+                  <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Transfiere a este número</p>
+                  <p id="sinpeNumero" class="mt-1 text-2xl font-black tracking-wide text-white">&mdash;</p>
+                  <p class="mt-3 text-xs leading-relaxed text-slate-400">Haz el SINPE Móvil por el monto exacto del evento y escribe abajo el número de comprobante que te devuelve tu banco. Tu entrada queda reservada de inmediato; el QR se activa cuando confirmemos el pago.</p>
                 </div>
               </div>
 
               <div id="paymentReferenceWrap">
-                <label for="paymentReference" class="mb-2 block text-sm font-medium text-slate-200">Referencia de pago</label>
-                <input id="paymentReference" name="paymentReference" type="text" placeholder="Ej: 123456 / comprobante de PayPal" class="w-full rounded-2xl border border-white/10 bg-[#121212]/80 px-4 py-3 text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20" />
+                <label for="paymentReference" class="mb-2 block text-sm font-medium text-slate-200">Número de comprobante</label>
+                <input id="paymentReference" name="comprobante" type="text" required maxlength="60" autocomplete="off" placeholder="Ej: 123456789" class="w-full rounded-2xl border border-white/10 bg-[#121212]/80 px-4 py-3 text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20" />
               </div>
 
               <button id="submitButton" type="submit" class="w-full rounded-2xl bg-gradient-to-r from-[#404040] to-black px-4 py-3.5 text-base font-bold text-white shadow-glow transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70">
-                Pagar y generar entrada
+                Ya hice el SINPE &middot; Generar mi entrada
               </button>
             </form>
             </div>
@@ -242,10 +230,26 @@
       let supabaseClient = null;
       let currentSession = null;
 
+      // El numero sale del servidor (PAYMENT_PHONE), no del HTML, para poder
+      // cambiarlo sin desplegar. Si falta, decirlo es mejor que ensenar un
+      // hueco: sin numero nadie puede pagar.
+      function pintarSinpe(numero) {
+        const destino = document.querySelector('#sinpeNumero');
+        if (!destino) return;
+        if (numero) {
+          destino.textContent = numero;
+          return;
+        }
+        destino.textContent = 'No disponible ahora mismo';
+        destino.classList.remove('text-2xl', 'text-white');
+        destino.classList.add('text-base', 'text-amber-200');
+      }
+
       async function initAuth() {
         try {
           const response = await fetch('/api/config');
           const config = await response.json();
+          pintarSinpe(config.paymentPhone);
           if (!config.supabaseUrl || !config.supabaseAnonKey) {
             authStatus.textContent = 'La compra no está disponible todavía.';
             googleLoginButton.classList.add('hidden');
@@ -290,7 +294,6 @@
       const resultado = document.querySelector('#resultado');
       const form = document.querySelector('#ticketForm');
       const submitButton = document.querySelector('#submitButton');
-      const paymentReferenceWrap = document.querySelector('#paymentReferenceWrap');
       const paymentReferenceInput = document.querySelector('#paymentReference');
       const entradasCount = document.querySelector('#entradasCount');
 
@@ -399,25 +402,6 @@
         }
       }
 
-      document.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
-        input.addEventListener('change', () => {
-          const selected = input.value;
-          const isPaymentByReference = selected === 'numero' || selected === 'paypal';
-          paymentReferenceWrap.classList.toggle('hidden', !isPaymentByReference);
-
-          if (selected === 'paypal') {
-            paymentReferenceInput.placeholder = 'Ej: ID de transacción de PayPal';
-          } else {
-            paymentReferenceInput.placeholder = 'Ej: número de referencia o comprobante';
-          }
-
-          paymentReferenceInput.required = isPaymentByReference;
-          if (!isPaymentByReference) {
-            paymentReferenceInput.value = '';
-          }
-        });
-      });
-
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
 
@@ -431,16 +415,10 @@
           return;
         }
 
-        const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked')?.value || '';
-        const paymentReference = paymentReferenceInput.value.trim();
+        const comprobante = paymentReferenceInput.value.trim();
 
-        if (!['paypal', 'numero'].includes(paymentMethod)) {
-          showResult('Debes elegir un método de pago antes de continuar.', false);
-          return;
-        }
-
-        if (!paymentReference) {
-          showResult('Debes ingresar la referencia del pago para confirmar la compra.', false);
+        if (!comprobante) {
+          showResult('Escribe el número de comprobante del SINPE para continuar.', false);
           paymentReferenceInput.focus();
           return;
         }
@@ -452,12 +430,11 @@
           evento: selectedEvent.nombre,
           tipoEntrada: selectedEvent.categoria,
           eventoId: selectedEvent.id,
-          paymentMethod,
-          paymentReference
+          comprobante
         };
 
         submitButton.disabled = true;
-        submitButton.textContent = 'Procesando pago...';
+        submitButton.textContent = 'Enviando solicitud...';
 
         try {
           const response = await fetch('/api/crear-ticket', {
@@ -475,7 +452,9 @@
             return;
           }
 
-          showResult(`Pago confirmado. Entrada creada con éxito. Redirigiendo a tu ticket...`, true);
+          // El servidor ya redacta el mensaje correcto: la solicitud se recibio
+          // y el QR sigue inactivo. Antes aqui decia "Pago confirmado".
+          showResult(data.mensaje || 'Solicitud recibida. Tu QR se activará cuando confirmemos el pago.', true);
           window.setTimeout(() => {
             window.location.href = `/ticket.html?ticketId=${data.ticket.id}`;
           }, 1200);
@@ -483,7 +462,7 @@
           showResult('No se pudo conectar con el servidor. Inténtalo de nuevo.', false);
         } finally {
           submitButton.disabled = false;
-          submitButton.textContent = 'Pagar y generar entrada';
+          submitButton.textContent = 'Ya hice el SINPE · Generar mi entrada';
         }
       });
 

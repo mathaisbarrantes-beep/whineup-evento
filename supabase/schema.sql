@@ -88,7 +88,7 @@ create table public.entradas (
   telefono text,
   tipo_entrada text not null default 'General' check (tipo_entrada in ('General','VIP')),
   precio numeric(10,2) not null,
-  metodo_pago text check (metodo_pago in ('paypal','numero')),
+  metodo_pago text check (metodo_pago in ('sinpe')),
   referencia_pago text,
   pagado boolean not null default false,
   estado text not null default 'PENDIENTE_PAGO' check (estado in ('PENDIENTE_PAGO','PENDIENTE','INGRESADO','CANCELADO')),

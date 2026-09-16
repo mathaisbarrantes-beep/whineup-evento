@@ -107,7 +107,10 @@
       .step-dot.on{background:#fff;}
       .step-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);margin-left:4px;}
       .modal-body{padding:20px 24px 28px;}
-      .modal-banner{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:16px;margin-bottom:14px;background:var(--surface-3);}
+      .modal-banner,.hero-banner,.card-banner{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:16px;background:var(--surface-3);}
+      .modal-banner{margin-bottom:14px;}
+      .hero-banner{margin-bottom:20px;}
+      .card-banner{border-radius:14px;margin-bottom:16px;}
       .event-mini{display:flex;align-items:center;gap:14px;border:1px solid var(--border);border-radius:16px;padding:14px;background:oklch(11% 0 0);}
       .event-mini-badge{width:44px;height:44px;border-radius:12px;background:var(--surface-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
       .event-mini b{font-size:15px;display:block;}
@@ -204,6 +207,7 @@
 
           <div class="hero-card" id="heroCard" hidden>
             <div class="hero-card-inner">
+              <img class="hero-banner" id="heroBanner" alt="" hidden />
               <span class="tag-live">● Disponible ahora</span>
               <h2 id="heroNombre"></h2>
               <div class="hero-card-meta">
@@ -409,6 +413,19 @@
 
       /* ---------------------------------------------------------- eventos */
 
+      // Sin banner se quita también el src: si no, el destacado o el modal
+      // seguirían mostrando la imagen del evento anterior.
+      function ponerImagen(img, url, alt) {
+        if (url) {
+          img.src = url;
+          img.alt = alt;
+          img.hidden = false;
+        } else {
+          img.hidden = true;
+          img.removeAttribute('src');
+        }
+      }
+
       function renderEventos(lista) {
         const grid = $('#eventCards');
         const vacio = $('#eventsEmpty');
@@ -424,6 +441,7 @@
         grid.innerHTML = lista.map((ev) => `
           <div class="card">
             <div class="card-inner">
+              ${ev.bannerUrl ? `<img class="card-banner" src="${esc(ev.bannerUrl)}" alt="${esc(ev.nombre)}" loading="lazy" />` : ''}
               <div class="card-top">
                 <span class="card-tag">${esc(ev.categoria)}</span>
                 <span class="card-price">${formatCRC(ev.precio)}</span>
@@ -450,6 +468,7 @@
         });
 
         const destacado = lista[0];
+        ponerImagen($('#heroBanner'), destacado.bannerUrl, destacado.nombre);
         $('#heroNombre').textContent = destacado.nombre;
         $('#heroFecha').textContent = formatFechaCorta(destacado.fecha);
         $('#heroLugar').textContent = destacado.lugar;
@@ -509,15 +528,7 @@
 
       function abrirModal(evento) {
         selectedEvent = evento;
-        const banner = $('#modalBanner');
-        if (evento.bannerUrl) {
-          banner.src = evento.bannerUrl;
-          banner.alt = evento.nombre;
-          banner.hidden = false;
-        } else {
-          banner.hidden = true;
-          banner.removeAttribute('src');
-        }
+        ponerImagen($('#modalBanner'), evento.bannerUrl, evento.nombre);
         $('#miniNombre').textContent = evento.nombre;
         $('#miniMeta').textContent = `${formatFechaCorta(evento.fecha)} · ${evento.lugar}`;
         // El tipo de entrada es la categoría del evento: la base guarda un solo

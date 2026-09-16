@@ -24,6 +24,7 @@
         --aviso:oklch(80% .15 80);
         --safe-top:env(safe-area-inset-top, 0px);
         --safe-bottom:env(safe-area-inset-bottom, 0px);
+        --cortesia:oklch(72% .16 300);
       }
       *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
       html,body{height:100%;}
@@ -55,6 +56,14 @@
         padding:10px 16px;font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none;
         display:inline-flex;align-items:center;min-height:44px;
       }
+
+      .modos{display:flex;gap:8px;padding:10px 16px;background:oklch(0% 0 0 / 70%);border-bottom:1px solid var(--border);z-index:3;}
+      .modo{flex:1;min-height:44px;border:1px solid var(--border-strong);border-radius:999px;background:transparent;font-size:14px;font-weight:700;}
+      .modo[aria-checked="true"]{background:#fff;color:#0a0a0a;border-color:#fff;}
+      /* El modo Cortesía no deja pasar a nadie: tiene que notarse de lejos. */
+      .app.modo-cortesia .modo[aria-checked="true"]{background:var(--cortesia);border-color:var(--cortesia);}
+      .app.modo-cortesia .barra{box-shadow:inset 0 -3px 0 var(--cortesia);}
+      .resultado .extra{font-size:15px;font-weight:700;border-top:1px solid currentColor;padding-top:10px;max-width:28ch;}
 
       .camara{position:relative;flex:1;min-height:0;background:#000;overflow:hidden;}
       #reader{position:absolute;inset:0;}
@@ -126,6 +135,11 @@
         <a class="salir" href="/scanner-dashboard">Panel</a>
       </div>
 
+      <div class="modos" role="radiogroup" aria-label="Modo del escáner">
+        <button type="button" class="modo" id="modoEntrada" role="radio" aria-checked="true">Entrada</button>
+        <button type="button" class="modo" id="modoCortesia" role="radio" aria-checked="false">Cortesía</button>
+      </div>
+
       <div class="camara">
         <div id="reader"></div>
 
@@ -140,6 +154,7 @@
           <div class="icono" id="resIcono"></div>
           <h2 id="resTitulo"></h2>
           <p class="detalle" id="resDetalle"></p>
+          <p class="extra" id="resExtra" hidden></p>
           <p class="toque">Tocá para seguir escaneando</p>
         </div>
 
@@ -181,6 +196,10 @@
       let indiceCamara = 0;
       let linternaEncendida = false;
       let wakeLock = null;
+      // En la barra el teléfono se queda en Cortesía: se recuerda por equipo.
+      const CLAVE_MODO = 'whineup.escaner.modo';
+      let modoEscaner = 'entrada';
+      try { if (localStorage.getItem(CLAVE_MODO) === 'cortesia') modoEscaner = 'cortesia'; } catch (e) { /* sin almacenamiento arranca en Entrada */ }
 
       function estado(texto) { $('#estado').textContent = texto; }
 
@@ -341,12 +360,14 @@
         error: { icono: '!', vibracion: [200, 100, 200] }
       };
 
-      function mostrarResultado(tipo, titulo, detalle) {
+      function mostrarResultado(tipo, titulo, detalle, extra) {
         const caja = $('#resultado');
         caja.className = `resultado ${tipo}`;
         $('#resIcono').textContent = RESULTADOS[tipo].icono;
         $('#resTitulo').textContent = titulo;
         $('#resDetalle').textContent = detalle;
+        $('#resExtra').textContent = extra || '';
+        $('#resExtra').hidden = !extra;
         caja.hidden = false;
         vibrar(RESULTADOS[tipo].vibracion);
       }
@@ -362,6 +383,81 @@
 
       $('#resultado').addEventListener('click', ocultarResultado);
 
+      async function validarEntrada(codigo) {
+        const response = await authFetch('/api/validar-ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId: codigo })
+        });
+        const data = await response.json();
+
+        if (data.permitido) {
+          const partes = [data.nombre, data.tipoEntrada].filter(Boolean).join(' · ');
+          mostrarResultado('ok', 'Adelante', partes || 'Entrada válida', data.cortesia ? `Trae cortesía: ${data.cortesia}` : '');
+        } else if (data.ok) {
+          mostrarResultado('mal', 'Denegado', data.mensaje || 'Entrada no válida');
+        } else {
+          // La ruta responde ok:false cuando no pudo revisar el ticket.
+          mostrarResultado('error', 'Sin validar', data.mensaje || 'No se pudo validar. Intentá de nuevo.');
+        }
+      }
+
+      const TITULOS_CANJE = {
+        ENTREGAR: 'Entregar',
+        YA_ENTREGADA: 'Ya se entregó',
+        SIN_CORTESIA: 'Sin cortesía',
+        NO_INGRESO: 'Todavía no entró',
+        NO_ENCONTRADA: 'Ticket no encontrado'
+      };
+
+      function horaCorta(iso) {
+        const d = new Date(iso);
+        return Number.isNaN(d.getTime()) ? '' : new Intl.DateTimeFormat('es-CR', { hour: 'numeric', minute: '2-digit' }).format(d);
+      }
+
+      async function canjearCortesia(codigo) {
+        const response = await authFetch('/api/canjear-cortesia', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticketId: codigo })
+        });
+        const data = await response.json();
+
+        if (!data.ok) {
+          mostrarResultado('error', 'Sin validar', data.mensaje || 'No se pudo canjear. Intentá de nuevo.');
+          return;
+        }
+        const titulo = TITULOS_CANJE[data.motivo] || 'No se pudo canjear';
+        if (data.permitido) {
+          mostrarResultado('ok', titulo, [data.cortesia, data.nombre].filter(Boolean).join(' · '));
+          return;
+        }
+        const detalles = {
+          YA_ENTREGADA: data.entregadaEn ? `Se entregó a las ${horaCorta(data.entregadaEn)}.` : 'Ya se había entregado.',
+          SIN_CORTESIA: 'Esta entrada no trae cortesía.',
+          NO_INGRESO: 'Primero tiene que pasar por la puerta. ¿Estás en modo Cortesía?',
+          NO_ENCONTRADA: 'Este QR no es de una entrada de WhineUp.'
+        };
+        mostrarResultado('mal', titulo, detalles[data.motivo] || data.mensaje || 'No se pudo canjear.');
+      }
+
+      function ponerModo(nuevo) {
+        modoEscaner = nuevo === 'cortesia' ? 'cortesia' : 'entrada';
+        try { localStorage.setItem(CLAVE_MODO, modoEscaner); } catch (e) { /* queda solo en memoria */ }
+        const esCortesia = modoEscaner === 'cortesia';
+        $('.app').classList.toggle('modo-cortesia', esCortesia);
+        $('#modoEntrada').setAttribute('aria-checked', String(!esCortesia));
+        $('#modoCortesia').setAttribute('aria-checked', String(esCortesia));
+        $('#pista').textContent = esCortesia ? 'Apuntá al QR para entregar la cortesía' : 'Apuntá al código QR de la entrada';
+        // La espera por código es por modo: el mismo QR recién leído en la
+        // puerta se puede leer enseguida en Cortesía.
+        ultimoCodigo = null;
+      }
+
+      $('#modoEntrada').addEventListener('click', () => ponerModo('entrada'));
+      $('#modoCortesia').addEventListener('click', () => ponerModo('cortesia'));
+      ponerModo(modoEscaner);
+
       async function alLeer(texto) {
         if (procesando) return;
 
@@ -376,21 +472,10 @@
         try { scanner.pause(true); } catch (e) { /* ya estaba en pausa */ }
 
         try {
-          const response = await authFetch('/api/validar-ticket', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticketId: codigo })
-          });
-          const data = await response.json();
-
-          if (data.permitido) {
-            const partes = [data.nombre, data.tipoEntrada].filter(Boolean).join(' · ');
-            mostrarResultado('ok', 'Adelante', partes || 'Entrada válida');
-          } else if (data.ok) {
-            mostrarResultado('mal', 'Denegado', data.mensaje || 'Entrada no válida');
+          if (modoEscaner === 'cortesia') {
+            await canjearCortesia(codigo);
           } else {
-            // La ruta responde ok:false cuando no pudo revisar el ticket.
-            mostrarResultado('error', 'Sin validar', data.mensaje || 'No se pudo validar. Intentá de nuevo.');
+            await validarEntrada(codigo);
           }
         } catch (error) {
           mostrarResultado('error', 'Sin conexión', 'No se pudo validar. Revisá la señal e intentá de nuevo.');

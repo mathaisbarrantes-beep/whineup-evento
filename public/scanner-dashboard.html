@@ -298,6 +298,11 @@
       let currentSession = null;
       let scanner = null;
       let processing = false;
+      // Mismo motivo que en /scanner: sin pausa ni espera, apuntar la cámara a
+      // una pantalla con varios QR los consume todos en segundos.
+      const ESPERA_MISMO_CODIGO = 8000;
+      let ultimoCodigo = null;
+      let ultimoMomento = 0;
       let sinpeDestino = null;
 
       async function initSupabase() {
@@ -495,6 +500,7 @@
         $('#resultIcon').innerHTML = allowed ? TIC : EQUIS;
         $('#resultStatus').textContent = allowed ? 'PERMITIDO' : 'DENEGADO';
         $('#resultDetail').textContent = message;
+        $('#cameraState').textContent = 'En pausa tras el escaneo…';
       }
 
       async function validateTicket(ticketId) {
@@ -516,9 +522,23 @@
 
       async function onScanSuccess(decodedText) {
         if (processing) return;
+
+        const codigo = String(decodedText).trim();
+        const ahora = Date.now();
+        if (codigo === ultimoCodigo && ahora - ultimoMomento < ESPERA_MISMO_CODIGO) return;
+
         processing = true;
-        await validateTicket(String(decodedText).trim());
-        setTimeout(() => { processing = false; }, 1500);
+        ultimoCodigo = codigo;
+        ultimoMomento = ahora;
+        try { scanner.pause(true); } catch (e) { /* ya estaba en pausa */ }
+
+        await validateTicket(codigo);
+
+        setTimeout(() => {
+          ultimoMomento = Date.now();
+          try { scanner.resume(); } catch (e) { /* ya corriendo */ }
+          processing = false;
+        }, 2500);
       }
 
       function startScanner() {

@@ -167,6 +167,13 @@
       let currentSession = null;
       let scanner = null;
       let procesando = false;
+      // La cámara decodifica diez veces por segundo. Sin esto, dejar el
+      // teléfono encima de un QR lo valida otra vez en cuanto se cierra el
+      // resultado, y el segundo intento lo da por usado: un código válido
+      // parece denegado y el operador no entiende por qué.
+      const ESPERA_MISMO_CODIGO = 8000;
+      let ultimoCodigo = null;
+      let ultimoMomento = 0;
       let modo = 'environment';   // la trasera: es la que mira al ticket
       let camaras = [];
       let indiceCamara = 0;
@@ -335,6 +342,10 @@
 
       function ocultarResultado() {
         $('#resultado').hidden = true;
+        // La espera cuenta desde que se cierra, no desde que se leyó: si no,
+        // el resultado se come casi todo el margen.
+        ultimoMomento = Date.now();
+        try { scanner.resume(); } catch (e) { /* la cámara ya está corriendo */ }
         procesando = false;
       }
 
@@ -342,13 +353,22 @@
 
       async function alLeer(texto) {
         if (procesando) return;
+
+        const codigo = String(texto).trim();
+        const ahora = Date.now();
+        if (codigo === ultimoCodigo && ahora - ultimoMomento < ESPERA_MISMO_CODIGO) return;
+
         procesando = true;
+        ultimoCodigo = codigo;
+        ultimoMomento = ahora;
+        // Nada más se decodifica mientras el resultado está en pantalla.
+        try { scanner.pause(true); } catch (e) { /* ya estaba en pausa */ }
 
         try {
           const response = await authFetch('/api/validar-ticket', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ticketId: String(texto).trim() })
+            body: JSON.stringify({ ticketId: codigo })
           });
           const data = await response.json();
 

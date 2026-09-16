@@ -10,6 +10,8 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: PUBLIC_URL
+        sync: false
       # Supabase (Postgres + Auth) para persistencia real.
       - key: SUPABASE_URL
         sync: false
@@ -17,15 +19,14 @@ services:
         sync: false
       - key: SUPABASE_ANON_KEY
         sync: false
-      - key: SMTP_HOST
+      # EmailJS (API REST desde el servidor).
+      - key: EMAILJS_SERVICE_ID
         sync: false
-      - key: SMTP_PORT
-        value: 587
-      - key: SMTP_SECURE
-        value: false
-      - key: SMTP_USER
+      - key: EMAILJS_PUBLIC_KEY
         sync: false
-      - key: SMTP_PASSWORD
+      - key: EMAILJS_PRIVATE_KEY
         sync: false
-      - key: SMTP_FROM
+      - key: EMAILJS_TEMPLATE_COMPRA
+        sync: false
+      - key: EMAILJS_TEMPLATE_TICKET
         sync: false

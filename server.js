@@ -3,11 +3,11 @@ require("dotenv").config();
 const express = require("express");
 const path = require("path");
 const QRCode = require("qrcode");
-const nodemailer = require("nodemailer");
+const { buildEmailer } = require("./lib/email");
 const { buildSupabaseClient } = require("./lib/supabaseClient");
 const { createAuthMiddleware } = require("./lib/auth");
 const { createEventosRepo } = require("./lib/eventos");
-const { createEntradasRepo } = require("./lib/entradas");
+const { createEntradasRepo, isUuid } = require("./lib/entradas");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -45,21 +45,7 @@ function requireSupabase(req, res, next) {
   return next();
 }
 
-const mailConfigured = Boolean(
-  process.env.SMTP_HOST &&
-  process.env.SMTP_USER &&
-  process.env.SMTP_PASSWORD
-);
-
-const transporter = mailConfigured ? nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: Number(process.env.SMTP_PORT || 587),
-  secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD
-  }
-}) : null;
+const emailer = buildEmailer();
 
 async function createTicketQr(ticketId) {
   return QRCode.toBuffer(ticketId, {
@@ -70,24 +56,23 @@ async function createTicketQr(ticketId) {
   });
 }
 
-async function enviarCorreoTicket({ to, subject, text, html, qrBuffer, ticketId }) {
-  if (!transporter) return;
-  try {
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
-      to,
-      subject,
-      text,
-      html,
-      attachments: [{
-        filename: `ticket-${ticketId}.png`,
-        content: qrBuffer,
-        contentType: "image/png"
-      }]
-    });
-  } catch (emailError) {
-    console.warn("No se pudo enviar el correo del ticket:", emailError.message);
-  }
+// Los nombres de estos campos son el contrato con las plantillas de EmailJS:
+// si aquí se renombra uno, la plantilla lo imprime vacío y EmailJS no avisa.
+function paramsDeTicket(ticket, { asunto, mensaje }) {
+  const { qrUrl, ticketUrl } = emailer.urlsDeTicket(ticket.id);
+  return {
+    to_email: ticket.correo,
+    to_name: ticket.nombre,
+    subject: asunto,
+    mensaje,
+    evento: ticket.evento || "tu evento",
+    tipo_entrada: ticket.tipoEntrada || "General",
+    qr_url: qrUrl,
+    ticket_url: ticketUrl,
+    // El uuid completo ya va dentro del QR y del enlace; para soporte basta el
+    // fragmento, y así no queda un id entero suelto en la bandeja de entrada.
+    referencia_corta: String(ticket.id).slice(0, 8).toUpperCase()
+  };
 }
 
 app.get("/api/config", (req, res) => {
@@ -103,7 +88,7 @@ app.get("/api/salud", (req, res) => {
     ok: true,
     mensaje: "Servidor funcionando correctamente.",
     supabase: Boolean(supabaseConfigured),
-    smtp: Boolean(transporter)
+    email: emailer.emailConfigured
   });
 });
 
@@ -261,13 +246,12 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
     });
 
     const qrBuffer = await createTicketQr(ticket.id);
-    await enviarCorreoTicket({
-      to: correo,
-      subject: `Solicitud de pago para ${evento.nombre}`,
-      text: `Hola ${nombre}. Recibimos tu referencia de pago para ${evento.nombre}. El QR se activará al confirmar el pago.`,
-      html: `<h2>Solicitud de pago para ${evento.nombre}</h2><p>Hola ${nombre},</p><p>Recibimos tu referencia. El equipo confirmará el pago antes de activar el QR.</p><p><strong>ID del ticket:</strong> ${ticket.id}</p>`,
-      qrBuffer,
-      ticketId: ticket.id
+    await emailer.enviar({
+      templateId: emailer.plantillas.compra,
+      params: paramsDeTicket(ticket, {
+        asunto: `Recibimos tu solicitud para ${evento.nombre}`,
+        mensaje: `Recibimos tu referencia de pago para ${evento.nombre}. Tu entrada queda reservada y el código QR se activa en cuanto confirmemos el pago. Te avisamos por este mismo correo.`
+      })
     });
 
     res.status(201).json({
@@ -302,14 +286,12 @@ app.post("/api/admin/confirmar-pago/:ticketId", requireRole("admin"), async (req
     }
 
     const updated = await entradasRepo.confirmarPago(req.params.ticketId, req.usuario.id);
-    const qrBuffer = await createTicketQr(updated.id);
-    await enviarCorreoTicket({
-      to: updated.correo,
-      subject: `Pago confirmado: tu entrada para ${updated.evento}`,
-      text: `Hola ${updated.nombre}. Tu pago fue confirmado. Presenta el QR adjunto al ingresar al evento.`,
-      html: `<h2>Pago confirmado</h2><p>Hola ${updated.nombre},</p><p>Tu entrada para <strong>${updated.evento}</strong> ya está activa.</p><p><strong>ID del ticket:</strong> ${updated.id}</p>`,
-      qrBuffer,
-      ticketId: updated.id
+    await emailer.enviar({
+      templateId: emailer.plantillas.ticket,
+      params: paramsDeTicket(updated, {
+        asunto: `Tu entrada para ${updated.evento} ya está activa`,
+        mensaje: "Confirmamos tu pago. Tu código QR ya está activo: preséntalo en la entrada del evento. Es personal y de un solo uso."
+      })
     });
 
     res.json({ ok: true, mensaje: "Pago confirmado y QR activado.", ticket: updated });
@@ -373,13 +355,12 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
       });
 
       const qrBuffer = await createTicketQr(ticket.id);
-      await enviarCorreoTicket({
-        to: correo,
-        subject: `Tu entrada para ${evento.nombre}`,
-        text: `Hola ${nombre}. El administrador generó una entrada ${tipoEntrada} para ${evento.nombre}.`,
-        html: `<h2>Tu entrada</h2><p>Hola ${nombre},</p><p>Tu entrada <strong>${tipoEntrada}</strong> para <strong>${evento.nombre}</strong> está lista.</p><p><strong>ID del ticket:</strong> ${ticket.id}</p>`,
-        qrBuffer,
-        ticketId: ticket.id
+      await emailer.enviar({
+        templateId: emailer.plantillas.ticket,
+        params: paramsDeTicket(ticket, {
+          asunto: `Tu entrada para ${evento.nombre}`,
+          mensaje: `Tu entrada ${tipoEntrada} para ${evento.nombre} ya está lista y activa. Presenta el código QR en la entrada del evento.`
+        })
       });
 
       generated.push({ ...ticket, qrDataUrl: `data:image/png;base64,${qrBuffer.toString("base64")}` });
@@ -393,6 +374,27 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
   } catch (error) {
     console.error("Error al generar QR:", error);
     res.status(500).json({ ok: false, mensaje: "No se pudo generar el QR." });
+  }
+});
+
+// La imagen del QR que embeben los correos. Es pública por necesidad: un
+// cliente de correo no manda cabeceras de sesión al cargar una <img>. No
+// expone nada nuevo (el contenido del QR es el id, que ya viaja en el enlace
+// del ticket) y el escáner sigue rechazando cualquier QR sin pago confirmado.
+// El filtro de uuid evita que el dominio sirva de generador de QR ajenos.
+app.get("/api/ticket/:ticketId/qr.png", async (req, res) => {
+  const ticketId = String(req.params.ticketId || "");
+  if (!isUuid(ticketId)) {
+    return res.status(404).send("QR no encontrado.");
+  }
+  try {
+    const buffer = await createTicketQr(ticketId);
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Cache-Control", "public, max-age=86400, immutable");
+    res.send(buffer);
+  } catch (error) {
+    console.error("Error al generar la imagen del QR:", error);
+    res.status(500).send("No se pudo generar el QR.");
   }
 });
 

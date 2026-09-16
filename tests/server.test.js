@@ -57,3 +57,19 @@ test('GET / serves the landing page', async () => {
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /html/);
 });
+
+// La imagen del QR la carga un cliente de correo, que no manda cabeceras de
+// sesion ni sabe de Supabase: tiene que responder aunque la base no este
+// configurada, y tiene que negarse a dibujar cualquier texto que no sea un id.
+test('GET /api/ticket/:id/qr.png returns a PNG for a uuid, even unconfigured', async () => {
+  const res = await request(app).get('/api/ticket/3f2504e0-4f89-41d3-9a0c-0305e82c3301/qr.png');
+  assert.equal(res.status, 200);
+  assert.equal(res.headers['content-type'], 'image/png');
+  assert.ok(res.body.length > 100, 'el PNG llega vacio');
+  assert.equal(res.body.subarray(1, 4).toString('latin1'), 'PNG');
+});
+
+test('GET /api/ticket/:id/qr.png rejects a non-uuid instead of drawing it', async () => {
+  const res = await request(app).get('/api/ticket/no-soy-un-uuid/qr.png');
+  assert.equal(res.status, 404);
+});

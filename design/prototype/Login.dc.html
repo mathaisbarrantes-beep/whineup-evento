@@ -1,0 +1,133 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --bg: oklch(9% 0 0);
+      --surface-1: oklch(14% 0 0);
+      --surface-2: oklch(19% 0 0);
+      --border: oklch(100% 0 0 / 12%);
+      --border-strong: oklch(100% 0 0 / 30%);
+      --text: oklch(97% 0 0);
+      --text-dim: oklch(74% 0 0);
+      --text-faint: oklch(52% 0 0);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+    a{color:var(--text-dim);text-decoration:none;}
+    a:hover{color:var(--text);}
+    h1{font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;margin:0;}
+    button{font-family:inherit;cursor:pointer;}
+    input{font-family:inherit;}
+    .grain{position:fixed;inset:0;pointer-events:none;opacity:0.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-repeat:repeat;}
+    .card{position:relative;width:100%;max-width:420px;border:1px solid var(--border-strong);border-radius:28px;padding:36px;background:var(--surface-1);margin:24px;}
+    .brand{display:flex;flex-direction:column;align-items:center;text-align:center;}
+    .brand img{width:56px;height:56px;border-radius:999px;}
+    .brand-sub{font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--text-faint);margin-top:14px;}
+    .card h1{font-size:26px;margin-top:8px;}
+    .tabs{display:flex;gap:6px;margin-top:26px;border:1px solid var(--border);border-radius:999px;padding:4px;}
+    .tab{flex:1;text-align:center;padding:10px;border-radius:999px;font-size:13px;font-weight:600;color:var(--text-dim);border:none;background:transparent;}
+    .tab-active{background:#fff;color:#0a0a0a;}
+    .panel{margin-top:26px;}
+    .copy{font-size:13px;color:var(--text-dim);line-height:1.55;text-align:center;}
+    .google-btn{width:100%;background:#fff;color:#0a0a0a;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:20px;}
+    .google-btn:hover{background:oklch(90% 0 0);}
+    .g-mark{width:20px;height:20px;border-radius:999px;background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+    .field{margin-top:16px;}
+    .field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:7px;font-weight:500;}
+    .field input{width:100%;background:oklch(11% 0 0);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;}
+    .field input:focus{border-color:var(--border-strong);}
+    .submit{width:100%;background:#fff;color:#0a0a0a;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:700;margin-top:22px;}
+    .submit:hover{background:oklch(90% 0 0);}
+    .status{margin-top:18px;border:1px solid var(--border-strong);border-radius:14px;padding:12px 14px;font-size:13px;text-align:center;color:var(--text-dim);}
+    .back{display:block;text-align:center;margin-top:26px;font-size:13px;}
+  </style>
+</helmet>
+
+<div class="grain"></div>
+<div class="card">
+  <div class="brand">
+    <img src="logo.png" alt="WhineUp CR">
+    <span class="brand-sub">WhineUp CR</span>
+    <h1>{{title}}</h1>
+  </div>
+
+  <div class="tabs">
+    <button class="tab" style="{{buyerTabStyle}}" onClick="{{handlers.pickBuyer}}">Comprador</button>
+    <button class="tab" style="{{staffTabStyle}}" onClick="{{handlers.pickStaff}}">Staff</button>
+  </div>
+
+  <sc-if value="{{isBuyer}}" hint-placeholder-val="{{true}}">
+    <div class="panel">
+      <p class="copy">Iniciá sesión con tu cuenta de Google para comprar entradas y ver las tuyas en un solo lugar.</p>
+      <button class="google-btn" onClick="{{handlers.demoLogin}}">
+        <span class="g-mark">G</span>
+        Continuar con Google
+      </button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{isStaff}}" hint-placeholder-val="{{false}}">
+    <div class="panel">
+      <div class="field">
+        <label>Correo</label>
+        <input placeholder="staff@whineup.cr" value="{{username}}" onChange="{{handlers.setUsername}}">
+      </div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" placeholder="••••••••" value="{{password}}" onChange="{{handlers.setPassword}}">
+      </div>
+      <button class="submit" onClick="{{handlers.demoLogin}}">Entrar al panel</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{showStatus}}" hint-placeholder-val="{{false}}">
+    <div class="status">{{statusText}}</div>
+  </sc-if>
+
+  <a href="#" class="back">← Volver a la home</a>
+</div>
+</x-dc>
+<script data-dc-script>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'buyer', username: '', password: '', status: '' };
+  }
+
+  renderVals() {
+    const isBuyer = this.state.tab === 'buyer';
+    const tabStyle = (active) => active
+      ? 'background:#fff;color:#0a0a0a;'
+      : 'background:transparent;color:var(--text-dim);';
+
+    return {
+      title: isBuyer ? 'Iniciá sesión' : 'Acceso staff',
+      isBuyer,
+      isStaff: !isBuyer,
+      buyerTabStyle: tabStyle(isBuyer),
+      staffTabStyle: tabStyle(!isBuyer),
+      username: this.state.username,
+      password: this.state.password,
+      showStatus: Boolean(this.state.status),
+      statusText: this.state.status,
+      handlers: {
+        pickBuyer: () => this.setState({ tab: 'buyer', status: '' }),
+        pickStaff: () => this.setState({ tab: 'staff', status: '' }),
+        setUsername: (e) => this.setState({ username: e.target.value }),
+        setPassword: (e) => this.setState({ password: e.target.value }),
+        demoLogin: () => this.setState({ status: 'Acceso correcto. Redirigiendo…' })
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

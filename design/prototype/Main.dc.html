@@ -1,0 +1,504 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --bg: oklch(9% 0 0);
+      --surface-1: oklch(14% 0 0);
+      --surface-2: oklch(19% 0 0);
+      --surface-3: oklch(25% 0 0);
+      --border: oklch(100% 0 0 / 12%);
+      --border-strong: oklch(100% 0 0 / 30%);
+      --text: oklch(97% 0 0);
+      --text-dim: oklch(74% 0 0);
+      --text-faint: oklch(52% 0 0);
+      --white: oklch(100% 0 0);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+    a{color:var(--text);text-decoration:none;}
+    a:hover{color:var(--white);}
+    h1,h2,h3{font-family:'Anton','Arial Narrow Bold',sans-serif;font-weight:400;letter-spacing:0.01em;margin:0;text-transform:uppercase;}
+    button{font-family:inherit;cursor:pointer;}
+    input{font-family:inherit;}
+    .grain{position:fixed;inset:0;pointer-events:none;opacity:0.05;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");background-repeat:repeat;z-index:1;}
+    .page{position:relative;min-height:100%;}
+    .wrap{max-width:1180px;margin:0 auto;padding:0 32px;}
+
+    .header{position:sticky;top:0;z-index:20;background:oklch(9% 0 0 / 88%);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+    .header-inner{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;max-width:1180px;margin:0 auto;}
+    .brand{display:flex;align-items:center;gap:12px;}
+    .brand img{width:44px;height:44px;border-radius:999px;display:block;}
+    .brand-name{font-family:'Anton',sans-serif;font-size:18px;letter-spacing:0.02em;}
+    .brand-sub{font-size:10px;letter-spacing:0.24em;color:var(--text-faint);text-transform:uppercase;margin-top:2px;}
+    .nav{display:flex;align-items:center;gap:28px;font-size:14px;color:var(--text-dim);}
+    .nav a{font-weight:500;}
+    .staff-link{display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:9px 18px;font-size:13px;font-weight:600;}
+    .staff-link:hover{border-color:var(--white);}
+
+    .hero{padding:88px 32px 64px;}
+    .hero-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.15fr 0.85fr;gap:56px;align-items:center;}
+    .eyebrow{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:7px 16px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-dim);}
+    .hero h1{font-size:clamp(40px,5.4vw,72px);line-height:0.98;margin-top:22px;max-width:640px;}
+    .hero p{margin-top:22px;font-size:17px;line-height:1.55;color:var(--text-dim);max-width:480px;}
+    .hero-actions{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap;}
+    .btn-primary{background:var(--white);color:#0a0a0a;border:none;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;}
+    .btn-primary:hover{background:oklch(90% 0 0);}
+    .btn-ghost{background:transparent;border:1px solid var(--border-strong);color:var(--text);border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;}
+    .btn-ghost:hover{border-color:var(--white);}
+    .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px;max-width:440px;}
+    .stat{border:1px solid var(--border);border-radius:16px;padding:14px 16px;background:var(--surface-1);}
+    .stat b{display:block;font-family:'Anton',sans-serif;font-size:22px;}
+    .stat span{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-faint);}
+
+    .hero-card{border:1px solid var(--border);border-radius:28px;padding:8px;background:var(--surface-1);}
+    .hero-card-inner{border-radius:22px;background:linear-gradient(155deg,var(--surface-2),oklch(11% 0 0));padding:26px;border:1px solid var(--border);}
+    .hero-card-top{display:flex;align-items:center;justify-content:space-between;}
+    .tag-live{font-size:10px;letter-spacing:0.2em;text-transform:uppercase;border:1px solid var(--border-strong);border-radius:999px;padding:6px 12px;color:var(--text-dim);}
+    .hero-card h2{font-size:34px;margin-top:22px;}
+    .hero-card-meta{display:flex;flex-direction:column;gap:8px;margin-top:14px;font-size:14px;color:var(--text-dim);}
+    .hero-card-meta div{display:flex;align-items:center;gap:8px;}
+    .hero-card-price{margin-top:22px;display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--border);padding-top:18px;}
+    .hero-card-price b{font-family:'Anton',sans-serif;font-size:22px;}
+
+    .events{padding:20px 32px 96px;}
+    .events-head{max-width:1180px;margin:0 auto 28px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+    .events-head .label{font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:var(--text-faint);}
+    .events-head h2{font-size:30px;margin-top:8px;}
+    .events-grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;}
+    .card{border:1px solid var(--border);border-radius:24px;padding:6px;background:var(--surface-1);transition:border-color .15s ease,transform .15s ease;}
+    .card:hover{border-color:var(--border-strong);transform:translateY(-2px);}
+    .card-inner{border-radius:19px;background:oklch(11% 0 0);padding:22px;border:1px solid var(--border);height:100%;display:flex;flex-direction:column;}
+    .card-top{display:flex;align-items:center;justify-content:space-between;}
+    .card-tag{font-size:10px;letter-spacing:0.16em;text-transform:uppercase;border:1px solid var(--border-strong);border-radius:999px;padding:5px 11px;color:var(--text-dim);}
+    .card-price{font-family:'Anton',sans-serif;font-size:19px;}
+    .card h3{font-size:26px;margin-top:18px;}
+    .card-meta{display:flex;flex-direction:column;gap:6px;margin-top:12px;font-size:13px;color:var(--text-dim);}
+    .card-meta div{display:flex;align-items:center;gap:7px;}
+    .card p{font-size:13px;color:var(--text-faint);line-height:1.5;margin-top:14px;flex-grow:1;}
+    .card-btn{margin-top:18px;width:100%;background:transparent;border:1px solid var(--border-strong);color:var(--text);border-radius:14px;padding:13px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;}
+    .card-btn:hover{background:var(--white);color:#0a0a0a;border-color:var(--white);}
+
+    .faq{padding:0 32px 96px;}
+    .faq-inner{max-width:1180px;margin:0 auto;border:1px solid var(--border);border-radius:28px;padding:40px;background:var(--surface-1);}
+    .faq-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px;}
+    .faq-item{border:1px solid var(--border);border-radius:16px;padding:18px;background:oklch(11% 0 0);}
+    .faq-item h4{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;text-transform:none;}
+    .faq-item p{font-size:13px;color:var(--text-dim);margin-top:8px;line-height:1.5;}
+
+    .footer{border-top:1px solid var(--border);padding:32px;text-align:center;font-size:13px;color:var(--text-faint);}
+    .footer a{color:var(--text-dim);margin:0 10px;}
+
+    .modal-overlay{position:fixed;inset:0;background:oklch(0% 0 0 / 72%);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;}
+    .modal{width:100%;max-width:480px;max-height:88vh;overflow-y:auto;background:var(--surface-1);border:1px solid var(--border-strong);border-radius:26px;padding:0;}
+    .modal-head{display:flex;align-items:center;justify-content:space-between;padding:22px 24px 0;}
+    .modal-close{width:34px;height:34px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text);flex-shrink:0;}
+    .modal-close:hover{border-color:var(--white);}
+    .steps{display:flex;align-items:center;gap:6px;}
+    .step-dot{width:26px;height:3px;border-radius:2px;background:var(--border-strong);}
+    .step-label{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--text-faint);}
+    .modal-body{padding:20px 24px 28px;}
+    .event-mini{display:flex;align-items:center;gap:14px;border:1px solid var(--border);border-radius:16px;padding:14px;background:oklch(11% 0 0);}
+    .event-mini-badge{width:44px;height:44px;border-radius:12px;background:var(--surface-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    .event-mini b{font-size:15px;display:block;}
+    .event-mini span{font-size:12px;color:var(--text-dim);}
+    .modal h3{font-size:24px;margin-top:18px;}
+    .modal-copy{font-size:14px;color:var(--text-dim);line-height:1.55;margin-top:8px;}
+    .field{margin-top:16px;}
+    .field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:7px;font-weight:500;}
+    .field input{width:100%;background:oklch(11% 0 0);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;}
+    .field input:focus{border-color:var(--border-strong);}
+    .field input[readonly]{color:var(--text-faint);}
+    .pill-row{display:flex;gap:10px;margin-top:8px;}
+    .pill{flex:1;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;background:oklch(11% 0 0);color:var(--text);font-size:13px;font-weight:600;}
+    .pill-sub{display:block;font-size:11px;font-weight:400;color:var(--text-faint);margin-top:3px;}
+    .summary{margin-top:20px;border-top:1px solid var(--border);padding-top:16px;display:flex;align-items:center;justify-content:space-between;}
+    .summary b{font-family:'Anton',sans-serif;font-size:20px;}
+    .google-btn{width:100%;background:var(--white);color:#0a0a0a;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:22px;}
+    .google-btn:hover{background:oklch(90% 0 0);}
+    .g-mark{width:20px;height:20px;border-radius:999px;background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;font-family:'Space Grotesk',sans-serif;}
+    .modal-cta{width:100%;background:var(--white);color:#0a0a0a;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:700;margin-top:22px;}
+    .modal-cta:hover{background:oklch(90% 0 0);}
+    .modal-cta:disabled{opacity:0.35;cursor:not-allowed;}
+    .modal-back{width:100%;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:14px;padding:13px;font-size:13px;font-weight:600;margin-top:10px;}
+    .success{text-align:center;padding:8px 0 4px;}
+    .success-icon{width:64px;height:64px;border-radius:999px;border:1.5px solid var(--white);display:flex;align-items:center;justify-content:center;margin:0 auto;}
+    .success h3{margin-top:20px;}
+    .pending-badge{display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--border-strong);border-radius:999px;padding:6px 14px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-dim);margin-top:14px;}
+    .ticket-preview{margin-top:20px;border:1px solid var(--border);border-radius:18px;padding:18px;background:oklch(11% 0 0);text-align:left;}
+    .ticket-preview-row{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px solid var(--border);color:var(--text-dim);}
+    .ticket-preview-row:last-child{border-bottom:none;}
+    .ticket-preview-row b{color:var(--text);font-weight:600;}
+
+    @media (max-width:900px){
+      .hero-inner{grid-template-columns:1fr;}
+      .faq-grid{grid-template-columns:1fr;}
+      .nav{display:none;}
+    }
+  </style>
+</helmet>
+
+<div class="page">
+  <div class="grain"></div>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <img src="logo.png" alt="WhineUp CR">
+        <div>
+          <div class="brand-name">WhineUp CR</div>
+          <div class="brand-sub">Eventos</div>
+        </div>
+      </div>
+      <nav class="nav">
+        <a href="#events">Eventos</a>
+        <a href="#faq">Preguntas</a>
+      </nav>
+      <a href="#" class="staff-link">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        Staff
+      </a>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div>
+        <span class="eyebrow">Entradas oficiales</span>
+        <h1>Tu próxima<br>noche empieza<br>acá.</h1>
+        <p>Entradas digitales para los eventos de WhineUp CR. Elegí tu fiesta, pagá en segundos y recibí tu QR al instante — sin filas, sin papel.</p>
+        <div class="hero-actions">
+          <button class="btn-primary" onClick="{{handlers.scrollToEvents}}">
+            Ver eventos
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </button>
+          <a href="#events" class="btn-ghost">Cómo funciona</a>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><b>{{eventCount}}</b><span>Eventos activos</span></div>
+          <div class="stat"><b>1</b><span>QR por entrada</span></div>
+          <div class="stat"><b>100%</b><span>Pago verificado</span></div>
+        </div>
+      </div>
+
+      <div class="hero-card">
+        <div class="hero-card-inner">
+          <div class="hero-card-top">
+            <span class="tag-live">● Disponible ahora</span>
+          </div>
+          <h2>{{featured.nombreCorto1}}<br>{{featured.nombreCorto2}}</h2>
+          <div class="hero-card-meta">
+            <div>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              {{featured.fecha}}
+            </div>
+            <div>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+              {{featured.lugar}}
+            </div>
+          </div>
+          <div class="hero-card-price">
+            <span style="font-size:13px;color:var(--text-dim);">Entrada General</span>
+            <b>{{featured.precioFmt}}</b>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="events" id="events">
+    <div class="events-head">
+      <div>
+        <p class="label">Eventos</p>
+        <h2>Elegí tu próxima experiencia</h2>
+      </div>
+    </div>
+    <div class="events-grid">
+      <sc-for list="{{events}}" as="ev" hint-placeholder-count="3">
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-top">
+              <span class="card-tag">{{ev.categoria}}</span>
+              <span class="card-price">{{ev.precioFmt}}</span>
+            </div>
+            <h3>{{ev.nombre}}</h3>
+            <div class="card-meta">
+              <div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                {{ev.fecha}}
+              </div>
+              <div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+                {{ev.lugar}}
+              </div>
+            </div>
+            <p>{{ev.descripcion}}</p>
+            <button class="card-btn" onClick="{{ev.select}}">
+              Seleccionar entrada
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <div class="faq-inner">
+      <p class="label">Preguntas frecuentes</p>
+      <div class="faq-grid">
+        <div class="faq-item">
+          <h4>¿Cómo pago mi entrada?</h4>
+          <p>Con PayPal o transferencia. Mandás tu referencia de pago y el equipo la confirma antes de activar tu QR.</p>
+        </div>
+        <div class="faq-item">
+          <h4>¿Necesito cuenta?</h4>
+          <p>Sí, iniciás sesión con tu cuenta de Google. Así guardamos tus entradas y evitamos QR duplicados.</p>
+        </div>
+        <div class="faq-item">
+          <h4>¿Puedo reusar el QR?</h4>
+          <p>No. Cada QR se inhabilita apenas se escanea una vez en la entrada del evento.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <a href="#">Términos y condiciones</a>·<a href="#">Privacidad</a>
+  </footer>
+
+  <sc-if value="{{modalOpen}}" hint-placeholder-val="{{false}}">
+    <div class="modal-overlay" onClick="{{handlers.closeModal}}">
+      <div class="modal" onClick="{{handlers.stop}}">
+        <div class="modal-head">
+          <div class="steps">
+            <sc-for list="{{stepDots}}" as="dot" hint-placeholder-count="3">
+              <div class="step-dot" style="{{dot.style}}"></div>
+            </sc-for>
+            <span class="step-label">{{stepLabel}}</span>
+          </div>
+          <button class="modal-close" onClick="{{handlers.closeModal}}">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <div class="event-mini">
+            <div class="event-mini-badge">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+            </div>
+            <div>
+              <b>{{selectedEvent.nombre}}</b>
+              <span>{{selectedEvent.fecha}} · {{selectedEvent.lugar}}</span>
+            </div>
+          </div>
+
+          <sc-if value="{{isStep1}}" hint-placeholder-val="{{true}}">
+            <h3>Iniciá sesión</h3>
+            <p class="modal-copy">Usamos tu cuenta de Google para guardar tu entrada y evitar QR duplicados. No compartimos tus datos con nadie más.</p>
+            <button class="google-btn" onClick="{{handlers.googleLogin}}">
+              <span class="g-mark">G</span>
+              Continuar con Google
+            </button>
+          </sc-if>
+
+          <sc-if value="{{isStep2}}" hint-placeholder-val="{{false}}">
+            <h3>Datos y pago</h3>
+            <div class="field">
+              <label>Nombre completo</label>
+              <input value="{{userName}}" readonly>
+            </div>
+            <div class="field">
+              <label>Correo</label>
+              <input value="{{userEmail}}" readonly>
+            </div>
+            <div class="field">
+              <label>Teléfono</label>
+              <input placeholder="+506 8888-0000" value="{{phone}}" onChange="{{handlers.setPhone}}">
+            </div>
+
+            <div class="field">
+              <label>Tipo de entrada</label>
+              <div class="pill-row">
+                <button class="pill" style="{{generalPillStyle}}" onClick="{{handlers.pickGeneral}}">General<span class="pill-sub">{{selectedEvent.precioFmt}}</span></button>
+                <button class="pill" style="{{vipPillStyle}}" onClick="{{handlers.pickVip}}">VIP<span class="pill-sub">{{selectedEvent.precioVipFmt}}</span></button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>Método de pago</label>
+              <div class="pill-row">
+                <button class="pill" style="{{paypalPillStyle}}" onClick="{{handlers.setPaymentPaypal}}">PayPal<span class="pill-sub">paypal@whineup.cr</span></button>
+                <button class="pill" style="{{numeroPillStyle}}" onClick="{{handlers.setPaymentNumero}}">Transferencia<span class="pill-sub">+506 8888-0000</span></button>
+              </div>
+            </div>
+
+            <div class="field">
+              <label>{{referenceLabel}}</label>
+              <input placeholder="Ej: 123456" value="{{paymentReference}}" onChange="{{handlers.setReference}}">
+            </div>
+
+            <div class="summary">
+              <span style="font-size:13px;color:var(--text-dim);">Total</span>
+              <b>{{selectedPrecioFmt}}</b>
+            </div>
+
+            <button class="modal-cta" disabled="{{cannotContinue}}" onClick="{{handlers.confirmPurchase}}">Confirmar y generar entrada</button>
+          </sc-if>
+
+          <sc-if value="{{isStep3}}" hint-placeholder-val="{{false}}">
+            <div class="success">
+              <div class="success-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <h3>Solicitud recibida</h3>
+              <p class="modal-copy">Recibimos tu referencia de pago. Tu QR se activa apenas el equipo confirme la transacción — te avisamos por correo.</p>
+              <span class="pending-badge">● Pendiente de confirmación</span>
+
+              <div class="ticket-preview">
+                <div class="ticket-preview-row"><span>Evento</span><b>{{selectedEvent.nombre}}</b></div>
+                <div class="ticket-preview-row"><span>Titular</span><b>{{userName}}</b></div>
+                <div class="ticket-preview-row"><span>Entrada</span><b>{{ticketType}}</b></div>
+                <div class="ticket-preview-row"><span>Total</span><b>{{selectedPrecioFmt}}</b></div>
+              </div>
+            </div>
+            <button class="modal-cta" onClick="{{handlers.closeModal}}">Listo</button>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script data-dc-script>
+function formatCRC(value) {
+  return new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      modalOpen: false,
+      selectedEvent: null,
+      step: 1,
+      loggedIn: false,
+      userName: '',
+      userEmail: '',
+      phone: '',
+      ticketType: 'General',
+      paymentMethod: 'paypal',
+      paymentReference: ''
+    };
+  }
+
+  renderVals() {
+    const rawEvents = [
+      { id: 'halloween-party', categoria: 'Halloween', nombre: 'HALLOWEEN PARTY', fecha: '31 Oct 2026', lugar: 'WhineUp CR', precio: 45000, precioVip: 65000, descripcion: 'La fiesta de Halloween de WhineUp CR. Música, disfraces y una noche inolvidable.' },
+      { id: 'neon-fest', categoria: 'Neón', nombre: 'NEON FEST', fecha: '15 Nov 2026', lugar: 'WhineUp CR', precio: 35000, precioVip: 50000, descripcion: 'Luz negra, pintura fluorescente y los DJs más pedidos del momento.' },
+      { id: 'white-party', categoria: 'Elegante', nombre: 'WHITE PARTY', fecha: '20 Dic 2026', lugar: 'WhineUp CR', precio: 50000, precioVip: 75000, descripcion: 'Vestite de blanco. Cerramos el año con la fiesta más esperada.' }
+    ];
+
+    const openFor = (ev) => () => this.setState({
+      modalOpen: true,
+      selectedEvent: ev,
+      step: this.state.loggedIn ? 2 : 1,
+      ticketType: 'General',
+      paymentMethod: 'paypal',
+      paymentReference: ''
+    });
+
+    const events = rawEvents.map((ev) => ({
+      ...ev,
+      precioFmt: formatCRC(ev.precio),
+      precioVipFmt: formatCRC(ev.precioVip),
+      select: openFor(ev)
+    }));
+
+    const featuredRaw = rawEvents[0];
+    const featuredWords = featuredRaw.nombre.split(' ');
+    const featuredSplit = Math.ceil(featuredWords.length / 2);
+    const featured = {
+      nombreCorto1: featuredWords.slice(0, featuredSplit).join(' '),
+      nombreCorto2: featuredWords.slice(featuredSplit).join(' '),
+      fecha: featuredRaw.fecha,
+      lugar: featuredRaw.lugar,
+      precioFmt: formatCRC(featuredRaw.precio)
+    };
+
+    const selectedEvent = this.state.selectedEvent ? {
+      ...this.state.selectedEvent,
+      precioFmt: formatCRC(this.state.selectedEvent.precio),
+      precioVipFmt: formatCRC(this.state.selectedEvent.precioVip)
+    } : { nombre: '', fecha: '', lugar: '', precio: 0, precioVip: 0, precioFmt: '', precioVipFmt: '' };
+
+    const activePrice = this.state.ticketType === 'VIP' ? this.state.selectedEvent?.precioVip : this.state.selectedEvent?.precio;
+    const step = this.state.step;
+
+    const dotStyle = (n) => n <= step
+      ? 'background:#fff;'
+      : 'background:var(--border-strong);';
+
+    const pillStyle = (active) => active
+      ? 'border-color:#fff;background:rgba(255,255,255,0.12);'
+      : 'border-color:var(--border);';
+
+    const stepLabels = { 1: 'Acceso', 2: 'Datos y pago', 3: 'Confirmación' };
+
+    return {
+      events,
+      featured,
+      eventCount: String(rawEvents.length),
+      modalOpen: this.state.modalOpen,
+      isStep1: step === 1,
+      isStep2: step === 2,
+      isStep3: step === 3,
+      stepLabel: stepLabels[step] || '',
+      stepDots: [1, 2, 3].map((n) => ({ n, style: dotStyle(n) })),
+      selectedEvent,
+      selectedPrecioFmt: formatCRC(activePrice),
+      userName: this.state.userName,
+      userEmail: this.state.userEmail,
+      phone: this.state.phone,
+      ticketType: this.state.ticketType,
+      paymentReference: this.state.paymentReference,
+      referenceLabel: this.state.paymentMethod === 'paypal' ? 'ID de transacción de PayPal' : 'Número o comprobante de transferencia',
+      generalPillStyle: pillStyle(this.state.ticketType === 'General'),
+      vipPillStyle: pillStyle(this.state.ticketType === 'VIP'),
+      paypalPillStyle: pillStyle(this.state.paymentMethod === 'paypal'),
+      numeroPillStyle: pillStyle(this.state.paymentMethod === 'numero'),
+      cannotContinue: !(this.state.phone && this.state.paymentReference),
+      handlers: {
+        closeModal: () => this.setState({ modalOpen: false }),
+        stop: (e) => e.stopPropagation(),
+        scrollToEvents: () => {},
+        googleLogin: () => this.setState({
+          loggedIn: true,
+          userName: 'María Fernández',
+          userEmail: 'maria.fernandez@gmail.com',
+          step: 2
+        }),
+        pickGeneral: () => this.setState({ ticketType: 'General' }),
+        pickVip: () => this.setState({ ticketType: 'VIP' }),
+        setPaymentPaypal: () => this.setState({ paymentMethod: 'paypal' }),
+        setPaymentNumero: () => this.setState({ paymentMethod: 'numero' }),
+        setPhone: (e) => this.setState({ phone: e.target.value }),
+        setReference: (e) => this.setState({ paymentReference: e.target.value }),
+        confirmPurchase: () => {
+          if (!this.state.phone || !this.state.paymentReference) return;
+          this.setState({ step: 3 });
+        }
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --bg: oklch(9% 0 0);
+      --surface-1: oklch(14% 0 0);
+      --surface-2: oklch(19% 0 0);
+      --surface-3: oklch(24% 0 0);
+      --border: oklch(100% 0 0 / 12%);
+      --border-strong: oklch(100% 0 0 / 30%);
+      --text: oklch(97% 0 0);
+      --text-dim: oklch(74% 0 0);
+      --text-faint: oklch(52% 0 0);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+    h1,h2,h3{font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;margin:0;}
+    button{font-family:inherit;cursor:pointer;}
+    input,select{font-family:inherit;}
+    a{color:inherit;text-decoration:none;}
+
+    .header{border-bottom:1px solid var(--border);background:oklch(7% 0 0 / 90%);}
+    .header-inner{max-width:1280px;margin:0 auto;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;}
+    .brand-sub{font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--text-faint);}
+    .header h1{font-size:20px;margin-top:4px;}
+    .header-right{display:flex;align-items:center;gap:12px;}
+    .user-chip{border:1px solid var(--border-strong);border-radius:999px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--text-dim);}
+    .logout{border:1px solid var(--border-strong);border-radius:999px;padding:10px 18px;font-size:13px;font-weight:600;background:transparent;color:var(--text);}
+    .logout:hover{border-color:#fff;}
+
+    .layout{max-width:1280px;margin:0 auto;padding:28px;display:grid;grid-template-columns:1.05fr 0.95fr;gap:22px;}
+
+    .panel{border:1px solid var(--border);border-radius:24px;padding:20px;background:var(--surface-1);}
+    .scan-viewport{border:1px solid var(--border);border-radius:18px;background:oklch(6% 0 0);aspect-ratio:1/1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;position:relative;overflow:hidden;}
+    .scan-frame{width:60%;aspect-ratio:1/1;border:2px solid rgba(255,255,255,0.5);border-radius:18px;position:relative;}
+    .scan-frame::before,.scan-frame::after{content:'';position:absolute;width:26px;height:26px;border-color:#fff;}
+    .scan-frame::before{top:-2px;left:-2px;border-top:3px solid;border-left:3px solid;border-radius:8px 0 0 0;}
+    .scan-frame::after{bottom:-2px;right:-2px;border-bottom:3px solid;border-right:3px solid;border-radius:0 0 8px 0;}
+    .scan-hint{font-size:12px;color:var(--text-faint);}
+    .scan-footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:12px;}
+    .scan-footer p{font-size:13px;color:var(--text-dim);margin:0;}
+    .btn-line{border:1px solid var(--border-strong);border-radius:999px;padding:10px 18px;font-size:13px;font-weight:600;background:transparent;color:var(--text);white-space:nowrap;}
+    .btn-line:hover{border-color:#fff;}
+
+    .status-row{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);border-radius:14px;padding:12px 14px;background:oklch(11% 0 0);font-size:13px;margin-top:10px;}
+    .status-row span:first-child{color:var(--text-dim);}
+    .status-row b{font-weight:700;}
+
+    .result{margin-top:16px;border-radius:20px;padding:20px;text-align:center;border:1px solid var(--border-strong);}
+    .result-allow{background:rgba(255,255,255,0.08);}
+    .result-deny{background:oklch(11% 0 0);border-style:dashed;}
+    .result-icon{width:56px;height:56px;border-radius:999px;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;margin:0 auto;}
+    .result h3{font-size:24px;margin-top:14px;}
+    .result p{font-size:13px;color:var(--text-dim);margin-top:6px;}
+
+    .section-title{font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:var(--text-faint);}
+    .section-head{display:flex;align-items:center;justify-content:space-between;margin-top:22px;margin-bottom:12px;}
+    .section-head h4{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;text-transform:none;margin:0;}
+    .refresh{font-size:12px;color:var(--text-dim);border:1px solid var(--border);border-radius:999px;padding:6px 12px;background:transparent;}
+    .refresh:hover{border-color:var(--border-strong);}
+
+    .list-col{display:flex;flex-direction:column;gap:10px;}
+    .row-card{border:1px solid var(--border);border-radius:16px;padding:14px;background:oklch(11% 0 0);}
+    .row-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+    .row-top b{font-size:14px;}
+    .row-top .meta{font-size:12px;color:var(--text-dim);margin-top:4px;}
+    .row-top .ref{font-size:11px;color:var(--text-faint);margin-top:6px;word-break:break-all;}
+    .approve{border:1px solid var(--border-strong);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;background:transparent;color:var(--text);white-space:nowrap;}
+    .contact-row{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:12px;color:var(--text-dim);}
+    .contact-row span{display:flex;align-items:center;gap:5px;}
+    .verify-block{margin-top:12px;border:1px dashed var(--border-strong);border-radius:12px;padding:10px 12px;}
+    .verify-label{font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--text-faint);}
+    .verify-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+    .verify-grid div{font-size:12px;}
+    .verify-grid span{display:block;font-size:10px;color:var(--text-faint);margin-bottom:2px;}
+    .verify-grid b{font-weight:600;word-break:break-all;}
+    .approve:hover{background:#fff;color:#0a0a0a;border-color:#fff;}
+    .empty{font-size:12px;color:var(--text-faint);border:1px dashed var(--border);border-radius:14px;padding:16px;text-align:center;}
+
+    .badge{font-size:10px;font-weight:700;letter-spacing:0.06em;border-radius:999px;padding:4px 10px;text-transform:uppercase;flex-shrink:0;}
+    .badge-active{background:#fff;color:#0a0a0a;}
+    .badge-used{border:1px solid var(--border-strong);color:var(--text-dim);}
+    .badge-pending{border:1px dashed var(--border-strong);color:var(--text-dim);}
+
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+    .form-grid input,.form-grid select{background:oklch(11% 0 0);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;outline:none;width:100%;}
+    .form-full{grid-column:1/-1;}
+    .gen-btn{grid-column:1/-1;background:#fff;color:#0a0a0a;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;margin-top:4px;}
+    .gen-btn:hover{background:oklch(90% 0 0);}
+
+    @media (max-width:920px){ .layout{grid-template-columns:1fr;} }
+  </style>
+</helmet>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <div class="brand-sub">WhineUp CR</div>
+      <h1>Panel de staff</h1>
+    </div>
+    <div class="header-right">
+      <span class="user-chip">Diego Rojas · admin</span>
+      <button class="logout">Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="panel">
+    <div class="scan-viewport">
+      <div class="scan-frame"></div>
+      <span class="scan-hint">Apuntá la cámara al QR del ticket</span>
+    </div>
+    <div class="scan-footer">
+      <p>Cámara activa</p>
+      <button class="btn-line" onClick="{{handlers.simulateScan}}">Simular escaneo</button>
+    </div>
+
+    <sc-if value="{{hasResult}}" hint-placeholder-val="{{false}}">
+      <div class="result" style="{{resultStyle}}">
+        <div class="result-icon">
+          <sc-if value="{{result.permitido}}" hint-placeholder-val="{{true}}">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+          </sc-if>
+          <sc-if value="{{result.denegado}}" hint-placeholder-val="{{false}}">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </sc-if>
+        </div>
+        <h3>{{result.estado}}</h3>
+        <p>{{result.mensaje}}</p>
+      </div>
+    </sc-if>
+  </div>
+
+  <div class="panel">
+    <span class="section-title">Validación</span>
+    <div class="status-row"><span>Rol</span><b>admin</b></div>
+    <div class="status-row"><span>Permisos de cámara</span><b>Concedidos</b></div>
+
+    <div class="section-head">
+      <h4>Pagos pendientes</h4>
+      <button class="refresh">Actualizar</button>
+    </div>
+    <div class="list-col">
+      <sc-for list="{{pending}}" as="p" hint-placeholder-count="2">
+        <div class="row-card">
+          <div class="row-top">
+            <div>
+              <b>{{p.nombre}}</b>
+              <div class="meta">{{p.evento}} · {{p.tipoEntrada}} · {{p.precioFmt}}</div>
+            </div>
+            <button class="approve" onClick="{{p.approve}}">Aprobar</button>
+          </div>
+
+          <div class="contact-row">
+            <span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>
+              {{p.correo}}
+            </span>
+            <span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .7 3a2 2 0 0 1-.5 2L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2-.5c1 .4 2 .6 3 .7a2 2 0 0 1 1.7 2Z"/></svg>
+              {{p.telefono}}
+            </span>
+            <span>{{p.solicitadoEn}}</span>
+          </div>
+
+          <div class="verify-block">
+            <span class="verify-label">Verificar pago</span>
+            <div class="verify-grid">
+              <div><span>Método</span><b>{{p.metodoPagoLabel}}</b></div>
+              <div><span>Cuenta destino</span><b>{{p.destino}}</b></div>
+              <div><span>Referencia del comprador</span><b>{{p.referencia}}</b></div>
+              <div><span>Monto esperado</span><b>{{p.precioFmt}}</b></div>
+            </div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <sc-if value="{{noPending}}" hint-placeholder-val="{{false}}">
+      <div class="empty">No hay solicitudes pendientes.</div>
+    </sc-if>
+
+    <div class="section-head">
+      <h4>Generar QR</h4>
+    </div>
+    <div class="form-grid">
+      <input class="form-full" placeholder="Nombre del invitado" value="{{guestName}}" onChange="{{handlers.setGuestName}}">
+      <input class="form-full" placeholder="Correo del invitado" value="{{guestEmail}}" onChange="{{handlers.setGuestEmail}}">
+      <select value="{{guestEvent}}" onChange="{{handlers.setGuestEvent}}"><option>HALLOWEEN PARTY</option><option>NEON FEST</option></select>
+      <select value="{{guestType}}" onChange="{{handlers.setGuestType}}"><option>General</option><option>VIP</option></select>
+      <button class="gen-btn" onClick="{{handlers.generateDemo}}">Generar QR</button>
+    </div>
+
+    <div class="section-head">
+      <h4>Entradas generadas</h4>
+      <button class="refresh">Actualizar</button>
+    </div>
+    <div class="list-col">
+      <sc-for list="{{tickets}}" as="t" hint-placeholder-count="3">
+        <div class="row-card">
+          <div class="row-top">
+            <div>
+              <b>{{t.nombre}}</b>
+              <div class="meta">{{t.evento}} · {{t.tipo}}</div>
+            </div>
+            <span class="badge {{t.badgeClass}}">{{t.estado}}</span>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script>
+function formatCRC(value) {
+  return new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      resultIndex: -1,
+      pending: [
+        {
+          id: 'p1', nombre: 'Carla Méndez', correo: 'carla.mendez@gmail.com', telefono: '+506 8888-1234',
+          evento: 'HALLOWEEN PARTY', tipoEntrada: 'General', precio: 45000,
+          metodoPago: 'paypal', destino: 'paypal@whineup.cr', referencia: 'PP-88213-CR',
+          solicitadoEn: 'Hace 12 min'
+        },
+        {
+          id: 'p2', nombre: 'Luis Araya', correo: 'luis.araya@hotmail.com', telefono: '+506 7777-5566',
+          evento: 'NEON FEST', tipoEntrada: 'VIP', precio: 50000,
+          metodoPago: 'numero', destino: '+506 8888-0000', referencia: '9911-4820',
+          solicitadoEn: 'Hace 34 min'
+        }
+      ],
+      guestName: '',
+      guestEmail: '',
+      guestEvent: 'HALLOWEEN PARTY',
+      guestType: 'General',
+      generatedGuests: []
+    };
+  }
+
+  renderVals() {
+    const outcomes = [
+      { permitido: true, denegado: false, estado: 'PERMITIDO', mensaje: 'María Fernández · HALLOWEEN PARTY · General' },
+      { permitido: false, denegado: true, estado: 'DENEGADO', mensaje: 'Ticket ya utilizado.' },
+      { permitido: false, denegado: true, estado: 'DENEGADO', mensaje: 'Pago pendiente de confirmación.' }
+    ];
+
+    const result = this.state.resultIndex >= 0 ? outcomes[this.state.resultIndex % outcomes.length] : null;
+
+    const pending = this.state.pending.map((p) => ({
+      ...p,
+      precioFmt: formatCRC(p.precio),
+      metodoPagoLabel: p.metodoPago === 'paypal' ? 'PayPal' : 'Transferencia',
+      approve: () => this.setState({ pending: this.state.pending.filter((x) => x.id !== p.id) })
+    }));
+
+    const baseTickets = [
+      { nombre: 'María Fernández', evento: 'HALLOWEEN PARTY', tipo: 'General', estado: 'PENDIENTE', badgeClass: 'badge-active' },
+      { nombre: 'Andrés Solano', evento: 'HALLOWEEN PARTY', tipo: 'VIP', estado: 'INGRESADO', badgeClass: 'badge-used' },
+      { nombre: 'Kimberly Vargas', evento: 'NEON FEST', tipo: 'General', estado: 'PENDIENTE_PAGO', badgeClass: 'badge-pending' }
+    ];
+    const generatedGuests = this.state.generatedGuests.map((g) => ({
+      nombre: g.nombre, evento: g.evento, tipo: g.tipo, estado: 'PENDIENTE', badgeClass: 'badge-active'
+    }));
+
+    return {
+      hasResult: Boolean(result),
+      result: result || { permitido: false, denegado: false, estado: '', mensaje: '' },
+      resultStyle: result ? (result.permitido ? 'background:rgba(255,255,255,0.08);' : 'border-style:dashed;') : '',
+      pending,
+      noPending: pending.length === 0,
+      tickets: [...generatedGuests, ...baseTickets],
+      guestName: this.state.guestName,
+      guestEmail: this.state.guestEmail,
+      guestEvent: this.state.guestEvent,
+      guestType: this.state.guestType,
+      handlers: {
+        simulateScan: () => this.setState({ resultIndex: this.state.resultIndex + 1 }),
+        setGuestName: (e) => this.setState({ guestName: e.target.value }),
+        setGuestEmail: (e) => this.setState({ guestEmail: e.target.value }),
+        setGuestEvent: (e) => this.setState({ guestEvent: e.target.value }),
+        setGuestType: (e) => this.setState({ guestType: e.target.value }),
+        generateDemo: () => {
+          if (!this.state.guestName) return;
+          this.setState({
+            generatedGuests: [
+              ...this.state.generatedGuests,
+              { nombre: this.state.guestName, evento: this.state.guestEvent, tipo: this.state.guestType }
+            ],
+            guestName: '',
+            guestEmail: ''
+          });
+        }
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

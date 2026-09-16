@@ -1,0 +1,13 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 2200, "is_interactive": true },
+    { "file": "Login.dc.html", "x": 0, "y": 2320, "w": 1200, "h": 900, "is_interactive": true },
+    { "file": "Staff.dc.html", "x": 1280, "y": 2320, "w": 1440, "h": 900, "is_interactive": true },
+    { "file": "Ticket.dc.html", "x": 2800, "y": 2320, "w": 390, "h": 844 }
+  ],
+  "annotations": [
+    { "id": "note-main", "x": 0, "y": -90, "w": 420, "text": "Landing + modal de compra (3 pasos: acceso, datos y pago, confirmación) — el foco del pedido." },
+    { "id": "note-row2", "x": 0, "y": 2230, "w": 900, "text": "Login (comprador/staff), panel de staff (escáner + pagos + generar QR) y vista de ticket individual (móvil)." }
+  ],
+  "launch": { "view": "canvas" }
+}

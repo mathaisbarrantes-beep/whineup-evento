@@ -1,0 +1,136 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap">
+  <style>
+    :root{
+      --bg: oklch(9% 0 0);
+      --surface-1: oklch(14% 0 0);
+      --border: oklch(100% 0 0 / 12%);
+      --border-strong: oklch(100% 0 0 / 30%);
+      --text: oklch(97% 0 0);
+      --text-dim: oklch(74% 0 0);
+      --text-faint: oklch(52% 0 0);
+    }
+    *{box-sizing:border-box;}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+    h1,h2{font-family:'Anton',sans-serif;font-weight:400;text-transform:uppercase;margin:0;}
+    button{font-family:inherit;cursor:pointer;}
+    .screen{min-height:100vh;padding:20px;display:flex;flex-direction:column;}
+    .top{display:flex;align-items:center;justify-content:space-between;}
+    .brand{display:flex;align-items:center;gap:10px;}
+    .brand img{width:30px;height:30px;border-radius:999px;}
+    .brand span{font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--text-faint);}
+    .back{width:36px;height:36px;border-radius:999px;border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;background:transparent;color:var(--text);}
+
+    .ticket{margin-top:22px;border:1px solid var(--border-strong);border-radius:26px;background:var(--surface-1);overflow:hidden;flex-grow:1;}
+    .ticket-top{padding:26px 24px 20px;position:relative;}
+    .status-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 14px;font-size:10px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;}
+    .status-active{background:#fff;color:#0a0a0a;}
+    .status-pending{border:1px dashed var(--border-strong);color:var(--text-dim);}
+    .ticket-top h1{font-size:30px;margin-top:16px;}
+    .ticket-meta{display:flex;flex-direction:column;gap:8px;margin-top:14px;font-size:13px;color:var(--text-dim);}
+    .ticket-meta div{display:flex;align-items:center;gap:8px;}
+
+    .perforation{position:relative;height:1px;background:var(--border);margin:0 24px;}
+    .perforation::before,.perforation::after{content:'';position:absolute;top:-11px;width:22px;height:22px;border-radius:999px;background:var(--bg);}
+    .perforation::before{left:-34px;}
+    .perforation::after{right:-34px;}
+
+    .qr-wrap{padding:26px 24px 10px;display:flex;flex-direction:column;align-items:center;}
+    .qr{width:200px;height:200px;background:#fff;border-radius:14px;padding:14px;display:grid;grid-template-columns:repeat(9,1fr);grid-template-rows:repeat(9,1fr);gap:3px;}
+    .qr div{background:#0a0a0a;border-radius:1px;}
+    .qr-hint{font-size:11px;color:var(--text-faint);margin-top:14px;text-align:center;}
+
+    .details{padding:16px 24px 26px;}
+    .detail-row{display:flex;justify-content:space-between;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border);color:var(--text-dim);}
+    .detail-row:last-child{border-bottom:none;}
+    .detail-row b{color:var(--text);font-weight:600;}
+    .ticket-id{font-size:10px;color:var(--text-faint);text-align:center;margin-top:8px;word-break:break-all;}
+
+    .actions{display:flex;gap:10px;margin-top:18px;}
+    .action{flex:1;border:1px solid var(--border-strong);border-radius:14px;padding:13px;font-size:13px;font-weight:600;background:transparent;color:var(--text);display:flex;align-items:center;justify-content:center;gap:8px;}
+    .action-solid{background:#fff;color:#0a0a0a;border-color:#fff;}
+  </style>
+</helmet>
+
+<div class="screen">
+  <div class="top">
+    <div class="brand">
+      <img src="logo.png" alt="WhineUp CR">
+      <span>WhineUp CR</span>
+    </div>
+    <button class="back">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </div>
+
+  <div class="ticket">
+    <div class="ticket-top">
+      <span class="status-badge status-active">● Entrada activa</span>
+      <h1>Halloween<br>Party</h1>
+      <div class="ticket-meta">
+        <div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+          31 Oct 2026 · 9:00 PM
+        </div>
+        <div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+          WhineUp CR
+        </div>
+      </div>
+    </div>
+
+    <div class="perforation"></div>
+
+    <div class="qr-wrap">
+      <div class="qr">
+        <sc-for list="{{qrCells}}" as="cell" hint-placeholder-count="81">
+          <div style="{{cell.style}}"></div>
+        </sc-for>
+      </div>
+      <p class="qr-hint">Mostrá este código en la entrada. Se inhabilita apenas se escanea.</p>
+    </div>
+
+    <div class="details">
+      <div class="detail-row"><span>Titular</span><b>María Fernández</b></div>
+      <div class="detail-row"><span>Correo</span><b>maria.fernandez@gmail.com</b></div>
+      <div class="detail-row"><span>Tipo de entrada</span><b>General</b></div>
+      <div class="detail-row"><span>Total pagado</span><b>₡45.000</b></div>
+      <p class="ticket-id">ID · 7f3a9c12-88be-4e1a-9c2d-1e6b0a4f22d1</p>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="action">Compartir</button>
+    <button class="action action-solid">Guardar</button>
+  </div>
+</div>
+</x-dc>
+<script data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    const pattern = [
+      1,1,1,0,1,0,1,1,1,
+      1,0,1,0,0,0,1,0,1,
+      1,0,1,0,1,0,1,0,1,
+      0,0,0,0,1,0,0,0,0,
+      1,1,0,1,0,1,0,1,1,
+      0,0,0,0,1,0,0,0,0,
+      1,0,1,0,1,0,1,0,1,
+      1,0,1,0,0,0,1,0,1,
+      1,1,1,0,1,0,1,1,1
+    ];
+    const qrCells = pattern.map((on) => ({ style: on ? '' : 'background:transparent;' }));
+    return { qrCells };
+  }
+}
+</script>
+</body>
+</html>

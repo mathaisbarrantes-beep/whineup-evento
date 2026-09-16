@@ -6,9 +6,10 @@ const QRCode = require("qrcode");
 const { buildEmailer } = require("./lib/email");
 const { buildSupabaseClient } = require("./lib/supabaseClient");
 const { createAuthMiddleware } = require("./lib/auth");
-const { createEventosRepo } = require("./lib/eventos");
+const { createEventosRepo, cortesiaVigente, cortesiaDesdeFormulario } = require("./lib/eventos");
 const { createEntradasRepo, isUuid } = require("./lib/entradas");
 const { createUsuariosRepo } = require("./lib/usuarios");
+const { paramsDeTicket } = require("./lib/correoTicket");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -30,10 +31,10 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const CATEGORIAS_VALIDAS = ["General", "VIP"];
 
-// Cada cortesía es una inserción, un QR y una llamada a EmailJS. Una función
+// Cada invitación es una inserción, un QR y una llamada a EmailJS. Una función
 // serverless tiene unos segundos de vida: con tandas grandes la petición muere
 // a medias, con parte de las entradas creadas y parte de los correos sin salir.
-const MAX_CORTESIAS = 20;
+const MAX_INVITACIONES = 20;
 
 function correoValido(correo) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
@@ -61,25 +62,6 @@ async function createTicketQr(ticketId) {
     margin: 2,
     errorCorrectionLevel: "H"
   });
-}
-
-// Los nombres de estos campos son el contrato con las plantillas de EmailJS:
-// si aquí se renombra uno, la plantilla lo imprime vacío y EmailJS no avisa.
-function paramsDeTicket(ticket, { asunto, mensaje }) {
-  const { qrUrl, ticketUrl } = emailer.urlsDeTicket(ticket.id);
-  return {
-    to_email: ticket.correo,
-    to_name: ticket.nombre,
-    subject: asunto,
-    mensaje,
-    evento: ticket.evento || "tu evento",
-    tipo_entrada: ticket.tipoEntrada || "General",
-    qr_url: qrUrl,
-    ticket_url: ticketUrl,
-    // El uuid completo ya va dentro del QR y del enlace; para soporte basta el
-    // fragmento, y así no queda un id entero suelto en la bandeja de entrada.
-    referencia_corta: String(ticket.id).slice(0, 8).toUpperCase()
-  };
 }
 
 app.get("/api/config", (req, res) => {
@@ -409,7 +391,9 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
       metodo_pago: "sinpe",
       referencia_pago: comprobante,
       pagado: false,
-      estado: "PENDIENTE_PAGO"
+      estado: "PENDIENTE_PAGO",
+      // Cuenta el momento del comprobante, no el de la confirmación del pago.
+      cortesia: cortesiaVigente(evento, new Date())
     });
 
     const qrBuffer = await createTicketQr(ticket.id);
@@ -418,7 +402,7 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
       params: paramsDeTicket(ticket, {
         asunto: `Recibimos tu solicitud para ${evento.nombre}`,
         mensaje: `Recibimos tu referencia de pago para ${evento.nombre}. Tu entrada queda reservada y el código QR se activa en cuanto confirmemos el pago. Te avisamos por este mismo correo.`
-      })
+      }, emailer.urlsDeTicket(ticket.id))
     });
 
     res.status(201).json({
@@ -461,7 +445,7 @@ app.post("/api/admin/confirmar-pago/:ticketId", requireRole("admin", "staff"), a
       params: paramsDeTicket(updated, {
         asunto: `Tu entrada para ${updated.evento} ya está activa`,
         mensaje: "Confirmamos tu pago. Tu código QR ya está activo: preséntalo en la entrada del evento. Es personal y de un solo uso."
-      })
+      }, emailer.urlsDeTicket(updated.id))
     });
 
     // Quien aprueba tiene que enterarse si el correo no salió: es la única
@@ -515,9 +499,13 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
     if (!["General", "VIP"].includes(tipoEntrada)) {
       return res.status(400).json({ ok: false, mensaje: "El tipo de entrada debe ser General o VIP." });
     }
-    if (!Number.isFinite(cantidad) || cantidad < 1 || cantidad > MAX_CORTESIAS) {
-      return res.status(400).json({ ok: false, mensaje: `La cantidad debe estar entre 1 y ${MAX_CORTESIAS}.` });
+    if (!Number.isFinite(cantidad) || cantidad < 1 || cantidad > MAX_INVITACIONES) {
+      return res.status(400).json({ ok: false, mensaje: `La cantidad debe estar entre 1 y ${MAX_INVITACIONES}.` });
     }
+
+    // Una sola decisión para toda la tanda: todas las invitaciones de un mismo
+    // pedido traen lo mismo.
+    const cortesia = cortesiaVigente(evento, new Date());
 
     const generated = [];
     const envios = [];
@@ -531,7 +519,8 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
         precio: evento.precio,
         pagado: true,
         estado: "PENDIENTE",
-        generado_por: req.usuario.id
+        generado_por: req.usuario.id,
+        cortesia
       });
 
       const qrBuffer = await createTicketQr(ticket.id);
@@ -542,7 +531,7 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
         params: paramsDeTicket(ticket, {
           asunto: `Tu entrada para ${evento.nombre}`,
           mensaje: `Tu entrada ${tipoEntrada} para ${evento.nombre} ya está lista y activa. Presenta el código QR en la entrada del evento.`
-        })
+        }, emailer.urlsDeTicket(ticket.id))
       }));
 
       generated.push({ ...ticket, qrDataUrl: `data:image/png;base64,${qrBuffer.toString("base64")}` });
@@ -556,15 +545,15 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
       ok: true,
       // Antes esta línea afirmaba que los correos habían salido, saliesen o no.
       mensaje: fallidos.length
-        ? `Se generaron ${generated.length} QR, pero ${fallidos.length} correo(s) no salieron (${fallidos[0].error}). Las entradas son válidas igual: podés pasarlas desde el listado.`
-        : `Se generaron ${generated.length} QR y se enviaron ${enviados} correo(s) a ${correo}.`,
+        ? `Se generaron ${generated.length} invitación(es), pero ${fallidos.length} correo(s) no salieron (${fallidos[0].error}). Las entradas son válidas igual: podés pasarlas desde el listado.`
+        : `Se generaron ${generated.length} invitación(es) y se enviaron ${enviados} correo(s) a ${correo}.`,
       correosEnviados: enviados,
       correosFallidos: fallidos.length,
       tickets: generated
     });
   } catch (error) {
     console.error("Error al generar QR:", error);
-    res.status(500).json({ ok: false, mensaje: "No se pudo generar el QR." });
+    res.status(500).json({ ok: false, mensaje: "No se pudieron generar las invitaciones." });
   }
 });
 

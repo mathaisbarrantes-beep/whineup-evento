@@ -104,8 +104,18 @@ test('construirUrls builds qr and ticket urls and tolerates a trailing slash', (
   assert.equal(urls.ticketUrl, 'https://ejemplo.com/ticket?ticketId=abc-123');
 });
 
-test('resolverBaseUrl prefers PUBLIC_URL, then VERCEL_URL, then localhost', () => {
-  assert.equal(resolverBaseUrl({ PUBLIC_URL: 'https://a.com', VERCEL_URL: 'b.vercel.app' }), 'https://a.com');
+// VERCEL_URL es la dirección de cada deployment: cambia en cada push y Supabase
+// no la tiene entre sus redirecciones permitidas, así que las invitaciones
+// terminaban en la Site URL. El dominio de producción no cambia.
+test('resolverBaseUrl prefers PUBLIC_URL, then the production domain, then VERCEL_URL, then localhost', () => {
+  const vercel = { VERCEL_PROJECT_PRODUCTION_URL: 'p.vercel.app', VERCEL_URL: 'p-x1y2z3-equipo.vercel.app' };
+  assert.equal(resolverBaseUrl({ PUBLIC_URL: 'https://a.com', ...vercel }), 'https://a.com');
+  assert.equal(resolverBaseUrl(vercel), 'https://p.vercel.app');
   assert.equal(resolverBaseUrl({ VERCEL_URL: 'b.vercel.app' }), 'https://b.vercel.app');
   assert.equal(resolverBaseUrl({ PORT: '4000' }), 'http://localhost:4000');
+});
+
+test('buildEmailer exposes the production domain as baseUrl for invitation links', () => {
+  const vercel = { VERCEL_PROJECT_PRODUCTION_URL: 'p.vercel.app', VERCEL_URL: 'p-x1y2z3-equipo.vercel.app' };
+  assert.equal(buildEmailer(vercel).baseUrl, 'https://p.vercel.app');
 });

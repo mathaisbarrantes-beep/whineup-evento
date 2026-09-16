@@ -120,6 +120,7 @@
       .scan-acciones .btn-line{display:inline-flex;align-items:center;text-decoration:none;}
       .nota-admin{font-size:11px;color:var(--text-faint);line-height:1.5;margin:12px 0 0;}
       .banner-mini{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin-bottom:12px;background:oklch(14% 0 0);}
+      .campo-fecha{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--text-dim);}
       label.approve{display:inline-flex;align-items:center;cursor:pointer;}
       .enlace-caja{margin-top:12px;border:1px solid var(--border-strong);border-radius:12px;padding:12px;}
       .enlace-caja input{width:100%;background:oklch(11% 0 0);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:12px;font-family:ui-monospace,Consolas,monospace;outline:none;}
@@ -192,7 +193,7 @@
 
         <div id="adminGenerator" hidden>
           <div class="section-head">
-            <h4>Generar QR de cortesía</h4>
+            <h4>Generar invitaciones</h4>
           </div>
           <form class="form-grid" id="adminQrForm">
             <input class="form-full" id="adminName" type="text" placeholder="Nombre del invitado" autocomplete="off" />
@@ -203,7 +204,7 @@
               <option value="VIP">VIP</option>
             </select>
             <input class="form-full" id="adminQty" type="number" min="1" max="20" value="1" />
-            <button type="submit" class="gen-btn" id="adminQrButton">Generar QR</button>
+            <button type="submit" class="gen-btn" id="adminQrButton">Generar invitaciones</button>
           </form>
           <div class="aviso" id="adminQrResult" hidden role="status"></div>
           <div class="acciones" id="pruebaCorreoCaja" hidden>
@@ -218,6 +219,7 @@
             <button type="button" class="refresh" id="refreshTickets">Actualizar</button>
           </div>
           <div class="list-col" id="generatedTickets"></div>
+          <div class="aviso" id="ticketsResult" hidden role="status"></div>
         </div>
 
         <div id="eventosSection" hidden>
@@ -239,6 +241,11 @@
             </select>
             <input class="form-full" id="eventoDescripcion" type="text" placeholder="Descripción (opcional)" autocomplete="off" />
             <input class="form-full" id="eventoCupo" type="number" min="1" placeholder="Cupo máximo (opcional)" />
+            <input class="form-full" id="eventoCortesia" type="text" maxlength="60" placeholder="Cortesía de preventa (opcional, ej. 1 shot gratis)" autocomplete="off" />
+            <label class="form-full campo-fecha" for="eventoCortesiaHasta">
+              Cortesía válida para compras hasta
+              <input id="eventoCortesiaHasta" type="datetime-local" />
+            </label>
             <button type="submit" class="gen-btn" id="eventoSubmit">Crear evento</button>
             <button type="button" class="refresh form-full" id="eventoCancelar" hidden>Cancelar edición</button>
           </form>
@@ -381,6 +388,7 @@
           const rol = data.user.role;
           const operativo = ['admin', 'staff'].includes(rol);
           const esAdmin = rol === 'admin';
+          esAdminActual = esAdmin;
 
           $('#adminGenerator').hidden = !operativo;
           $('#paymentApproval').hidden = !operativo;
@@ -476,23 +484,68 @@
         return 'badge-active';
       }
 
+      function lineaCortesiaEntrada(t) {
+        if (!t.cortesia) return '';
+        const estado = t.cortesiaEntregadaEn ? `entregada ${formatFecha(t.cortesiaEntregadaEn)}` : 'sin entregar';
+        return `<div class="meta">Cortesía: ${esc(t.cortesia)} · ${esc(estado)}</div>`;
+      }
+
+      // Dar y quitar es cosa del admin; el staff solo ve el estado.
+      function botonCortesia(t) {
+        if (!esAdminActual) return '';
+        if (!t.cortesia && t.eventoCortesia) {
+          return `<button type="button" class="approve" data-cortesia="${esc(t.id)}" data-dar="true">Dar cortesía</button>`;
+        }
+        if (t.cortesia && !t.cortesiaEntregadaEn) {
+          return `<button type="button" class="approve" data-cortesia="${esc(t.id)}" data-dar="false">Quitar cortesía</button>`;
+        }
+        return '';
+      }
+
       function renderGeneratedTickets(tickets) {
         const caja = $('#generatedTickets');
         if (!tickets.length) {
           caja.innerHTML = '<div class="empty">Todavía no hay entradas generadas.</div>';
           return;
         }
-        caja.innerHTML = tickets.map((t) => `
-          <div class="row-card">
-            <div class="row-top">
-              <div>
-                <b>${esc(t.nombre)}</b>
-                <div class="meta">${esc(t.evento)} · ${esc(t.tipoEntrada)} · ${esc(t.generadoPor ? 'Cortesía' : 'Compra')}</div>
+        caja.innerHTML = tickets.map((t) => {
+          const boton = botonCortesia(t);
+          return `
+            <div class="row-card">
+              <div class="row-top">
+                <div>
+                  <b>${esc(t.nombre)}</b>
+                  <div class="meta">${esc(t.evento)} · ${esc(t.tipoEntrada)} · ${esc(t.generadoPor ? 'Invitación' : 'Compra')}</div>
+                  ${lineaCortesiaEntrada(t)}
+                </div>
+                <span class="badge ${badgeDe(t.estado)}">${esc(t.estado)}</span>
               </div>
-              <span class="badge ${badgeDe(t.estado)}">${esc(t.estado)}</span>
+              ${boton ? `<div class="acciones">${boton}</div>` : ''}
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
+
+        caja.querySelectorAll('[data-cortesia]').forEach((b) => {
+          b.addEventListener('click', () => cambiarCortesia(b.dataset.cortesia, b.dataset.dar === 'true', b));
+        });
+      }
+
+      async function cambiarCortesia(id, dar, boton) {
+        boton.disabled = true;
+        try {
+          const response = await authFetch(`/api/admin/entradas/${encodeURIComponent(id)}/cortesia`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ dar })
+          });
+          const data = await response.json();
+          avisar($('#ticketsResult'), data.mensaje || 'No se pudo cambiar la cortesía.', response.ok);
+          if (response.ok) { loadGeneratedTickets(); loadEventos(); }
+        } catch (error) {
+          avisar($('#ticketsResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          boton.disabled = false;
+        }
       }
 
       async function loadGeneratedTickets() {
@@ -534,8 +587,9 @@
             body: JSON.stringify({ ticketId })
           });
           const data = await response.json();
+          const cortesia = data.permitido && data.cortesia ? ` · Trae cortesía: ${data.cortesia}` : '';
           const detalle = data.permitido && data.nombre
-            ? `${data.nombre} · ${data.evento || ''} · ${data.tipoEntrada || ''}`
+            ? `${data.nombre} · ${data.evento || ''} · ${data.tipoEntrada || ''}${cortesia}`
             : (data.mensaje || 'No se pudo validar el ticket.');
           // ok:false es que la ruta no pudo revisar el ticket, no que lo rechazara.
           showResult(data.permitido ? 'allow' : (data.ok ? 'deny' : 'error'), detalle);
@@ -658,7 +712,7 @@
           avisar($('#adminQrResult'), 'No se pudo generar el QR.', false);
         } finally {
           boton.disabled = false;
-          boton.textContent = 'Generar QR';
+          boton.textContent = 'Generar invitaciones';
         }
       });
 
@@ -691,6 +745,20 @@
       }
 
       let eventosCache = [];
+      let esAdminActual = false;
+
+      function lineaCortesiaEvento(ev) {
+        const partes = [];
+        if (ev.cortesia) {
+          const vencida = new Date(ev.cortesiaHasta).getTime() < Date.now();
+          partes.push(`<div class="meta">Cortesía: ${esc(ev.cortesia)} · ${vencida ? 'vencida' : `hasta ${esc(formatFechaEvento(ev.cortesiaHasta))}`}</div>`);
+        }
+        const conteo = ev.cortesias || { asignadas: 0, entregadas: 0 };
+        if (ev.cortesia || conteo.asignadas) {
+          partes.push(`<div class="meta">${conteo.asignadas} con cortesía · ${conteo.entregadas} entregadas</div>`);
+        }
+        return partes.join('');
+      }
 
       function renderEventos(lista) {
         eventosCache = lista;
@@ -708,6 +776,7 @@
                 <b>${esc(ev.nombre)}</b>
                 <div class="meta">${esc(formatFechaEvento(ev.fecha))} · ${esc(ev.lugar)}</div>
                 <div class="meta">${esc(ev.categoria)} · ${formatCRC(ev.precio)}${ev.cupoMaximo ? ` · cupo ${ev.cupoMaximo}` : ''}</div>
+                ${lineaCortesiaEvento(ev)}
               </div>
               <span class="badge ${ev.activo ? 'badge-active' : 'badge-pending'}">${ev.activo ? 'Activo' : 'Oculto'}</span>
             </div>
@@ -813,6 +882,8 @@
         $('#eventoCategoria').value = ev.categoria || 'General';
         $('#eventoDescripcion').value = ev.descripcion || '';
         $('#eventoCupo').value = ev.cupoMaximo || '';
+        $('#eventoCortesia').value = ev.cortesia || '';
+        $('#eventoCortesiaHasta').value = ev.cortesiaHasta ? aDatetimeLocal(ev.cortesiaHasta) : '';
         $('#eventoSubmit').textContent = 'Guardar cambios';
         $('#eventoCancelar').hidden = false;
         $('#eventoNombre').focus();
@@ -848,6 +919,13 @@
         const fecha = fechaLocal ? new Date(fechaLocal).toISOString() : null;
         if (!fecha) { avisar($('#eventoResult'), 'Poné una fecha válida.', false); return; }
 
+        const cortesia = $('#eventoCortesia').value.trim();
+        const hastaLocal = $('#eventoCortesiaHasta').value;
+        if (Boolean(cortesia) !== Boolean(hastaLocal)) {
+          avisar($('#eventoResult'), 'Para la cortesía hacen falta el texto y la fecha límite, o ninguno de los dos.', false);
+          return;
+        }
+
         const cupo = $('#eventoCupo').value;
         const cuerpo = {
           nombre: $('#eventoNombre').value.trim(),
@@ -856,7 +934,10 @@
           precio: Number($('#eventoPrecio').value || 0),
           categoria: $('#eventoCategoria').value,
           descripcion: $('#eventoDescripcion').value.trim(),
-          cupoMaximo: cupo ? Number(cupo) : null
+          cupoMaximo: cupo ? Number(cupo) : null,
+          cortesia,
+          // Igual que la fecha del evento: se convierte con la zona del navegador.
+          cortesiaHasta: hastaLocal ? new Date(hastaLocal).toISOString() : ''
         };
 
         boton.disabled = true;
@@ -1004,7 +1085,7 @@
         });
       }
 
-      // Si las cortesías o las confirmaciones no llegan, esto dice por qué sin
+      // Si las invitaciones o las confirmaciones no llegan, esto dice por qué sin
       // tener que abrir los logs del proveedor.
       $('#probarCorreo').addEventListener('click', async () => {
         const boton = $('#probarCorreo');

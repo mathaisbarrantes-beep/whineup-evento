@@ -3,114 +3,245 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Scanner Dashboard | WhineUp</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/theme.css" />
+    <title>Panel de staff | WhineUp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <style>
+      :root{
+        --bg:oklch(9% 0 0);
+        --surface-1:oklch(14% 0 0);
+        --surface-2:oklch(19% 0 0);
+        --surface-3:oklch(24% 0 0);
+        --border:oklch(100% 0 0 / 12%);
+        --border-strong:oklch(100% 0 0 / 30%);
+        --text:oklch(97% 0 0);
+        --text-dim:oklch(74% 0 0);
+        --text-faint:oklch(52% 0 0);
+      }
+      *{box-sizing:border-box;}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+      h1,h2,h3{font-family:'Anton','Arial Narrow',sans-serif;font-weight:400;text-transform:uppercase;margin:0;}
+      button{font-family:inherit;cursor:pointer;}
+      input,select{font-family:inherit;}
+      a{color:inherit;text-decoration:none;}
+      [hidden]{display:none !important;}
+      :focus-visible{outline:2px solid #fff;outline-offset:2px;}
+
+      .header{border-bottom:1px solid var(--border);background:oklch(7% 0 0 / 90%);position:sticky;top:0;z-index:10;}
+      .header-inner{max-width:1280px;margin:0 auto;padding:18px 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+      .brand-sub{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--text-faint);}
+      .header h1{font-size:20px;margin-top:4px;}
+      .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+      .user-chip{border:1px solid var(--border-strong);border-radius:999px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--text-dim);}
+      .logout{border:1px solid var(--border-strong);border-radius:999px;padding:10px 18px;font-size:13px;font-weight:600;background:transparent;color:var(--text);}
+      .logout:hover{border-color:#fff;}
+
+      .layout{max-width:1280px;margin:0 auto;padding:28px;display:grid;grid-template-columns:1.05fr .95fr;gap:22px;align-items:start;}
+      .panel{border:1px solid var(--border);border-radius:24px;padding:20px;background:var(--surface-1);}
+
+      .scan-viewport{border:1px solid var(--border);border-radius:18px;background:oklch(6% 0 0);aspect-ratio:1/1;position:relative;overflow:hidden;}
+      #reader{position:absolute;inset:0;}
+      #reader video{width:100% !important;height:100% !important;object-fit:cover;display:block;}
+      #reader img{display:none;}
+      .scan-guide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;pointer-events:none;}
+      .scan-frame{width:60%;aspect-ratio:1/1;border:2px solid oklch(100% 0 0 / 50%);border-radius:18px;position:relative;}
+      .scan-frame::before,.scan-frame::after{content:'';position:absolute;width:26px;height:26px;border-color:#fff;}
+      .scan-frame::before{top:-2px;left:-2px;border-top:3px solid;border-left:3px solid;border-radius:8px 0 0 0;}
+      .scan-frame::after{bottom:-2px;right:-2px;border-bottom:3px solid;border-right:3px solid;border-radius:0 0 8px 0;}
+      .scan-hint{font-size:12px;color:var(--text-faint);text-align:center;padding:0 16px;}
+      .scan-footer{display:flex;align-items:center;justify-content:space-between;margin-top:16px;gap:12px;flex-wrap:wrap;}
+      .scan-footer p{font-size:13px;color:var(--text-dim);margin:0;}
+      .btn-line{border:1px solid var(--border-strong);border-radius:999px;padding:10px 18px;font-size:13px;font-weight:600;background:transparent;color:var(--text);white-space:nowrap;}
+      .btn-line:hover{border-color:#fff;}
+
+      .status-row{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--border);border-radius:14px;padding:12px 14px;background:oklch(11% 0 0);font-size:13px;margin-top:10px;}
+      .status-row span:first-child{color:var(--text-dim);}
+      .status-row b{font-weight:700;}
+
+      .result{margin-top:16px;border-radius:20px;padding:20px;text-align:center;border:1px solid var(--border-strong);}
+      .result-allow{background:oklch(100% 0 0 / 8%);}
+      .result-deny{background:oklch(11% 0 0);border-style:dashed;}
+      .result-icon{width:56px;height:56px;border-radius:999px;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;margin:0 auto;}
+      .result h3{font-size:24px;margin-top:14px;}
+      .result p{font-size:13px;color:var(--text-dim);margin-top:6px;}
+
+      .section-title{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-faint);}
+      .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:22px 0 12px;}
+      .section-head h4{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;margin:0;}
+      .refresh{font-size:12px;color:var(--text-dim);border:1px solid var(--border);border-radius:999px;padding:6px 12px;background:transparent;}
+      .refresh:hover{border-color:var(--border-strong);}
+
+      .list-col{display:flex;flex-direction:column;gap:10px;}
+      .row-card{border:1px solid var(--border);border-radius:16px;padding:14px;background:oklch(11% 0 0);}
+      .row-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+      .row-top b{font-size:14px;}
+      .row-top .meta{font-size:12px;color:var(--text-dim);margin-top:4px;}
+      .approve{border:1px solid var(--border-strong);border-radius:10px;padding:8px 14px;font-size:12px;font-weight:700;background:transparent;color:var(--text);white-space:nowrap;}
+      .approve:hover{background:#fff;color:#0a0a0a;border-color:#fff;}
+      .approve:disabled{opacity:.4;cursor:not-allowed;}
+      .contact-row{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:8px;font-size:12px;color:var(--text-dim);}
+      .contact-row span{display:flex;align-items:center;gap:5px;word-break:break-all;}
+      .verify-block{margin-top:12px;border:1px dashed var(--border-strong);border-radius:12px;padding:10px 12px;}
+      .verify-label{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);}
+      .verify-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px;}
+      .verify-grid div{font-size:12px;}
+      .verify-grid span{display:block;font-size:10px;color:var(--text-faint);margin-bottom:2px;}
+      .verify-grid b{font-weight:600;word-break:break-all;}
+      .empty{font-size:12px;color:var(--text-faint);border:1px dashed var(--border);border-radius:14px;padding:16px;text-align:center;}
+
+      .badge{font-size:10px;font-weight:700;letter-spacing:.06em;border-radius:999px;padding:4px 10px;text-transform:uppercase;flex-shrink:0;}
+      .badge-active{background:#fff;color:#0a0a0a;}
+      .badge-used{border:1px solid var(--border-strong);color:var(--text-dim);}
+      .badge-pending{border:1px dashed var(--border-strong);color:var(--text-dim);}
+
+      .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+      .form-grid input,.form-grid select{background:oklch(11% 0 0);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:13px;outline:none;width:100%;}
+      .form-grid input:focus,.form-grid select:focus{border-color:var(--border-strong);}
+      .form-full{grid-column:1/-1;}
+      .gen-btn{grid-column:1/-1;background:#fff;color:#0a0a0a;border:none;border-radius:10px;padding:12px;font-size:13px;font-weight:700;margin-top:4px;}
+      .gen-btn:hover{background:oklch(90% 0 0);}
+      .gen-btn:disabled{opacity:.4;cursor:not-allowed;}
+      .aviso{margin-top:12px;border-radius:12px;border:1px solid var(--border-strong);padding:10px 12px;font-size:12px;line-height:1.5;color:var(--text-dim);}
+      .aviso.bien{border-color:oklch(60% .14 150);color:oklch(82% .12 150);}
+      .aviso.malo{border-color:oklch(60% .19 25);color:oklch(80% .12 25);}
+      .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-top:12px;}
+      .qr-card{border:1px solid var(--border);border-radius:14px;padding:12px;background:oklch(11% 0 0);text-align:center;}
+      .qr-card img{width:110px;height:110px;background:#fff;border-radius:10px;padding:6px;margin:8px auto 0;display:block;}
+      .qr-card .nombre{font-size:13px;font-weight:600;margin:0;word-break:break-word;}
+      .qr-card .tipo{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin:0 0 2px;}
+      .qr-card .id{font-size:9px;color:var(--text-faint);margin:6px 0 0;word-break:break-all;}
+
+      @media (max-width:920px){
+        .layout{grid-template-columns:1fr;padding:20px;}
+        .header-inner{padding:16px 20px;}
+        .verify-grid{grid-template-columns:1fr;}
+      }
+    </style>
   </head>
-  <body class="min-h-screen bg-black text-white">
-    <header class="border-b border-white/10 bg-slate-950/80 backdrop-blur-xl">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+  <body>
+    <div class="header">
+      <div class="header-inner">
         <div>
-          <p class="text-xs uppercase tracking-[0.28em] text-violet-300">WhineUp</p>
-          <h1 class="text-xl font-black">Scanner Dashboard</h1>
+          <div class="brand-sub">WhineUp CR</div>
+          <h1>Panel de staff</h1>
         </div>
-
-        <div class="flex items-center gap-3">
-          <span id="userLabel" class="hidden rounded-full border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-xs font-semibold text-violet-100"></span>
-          <button id="logoutButton" type="button" class="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-100 transition hover:border-red-400 hover:text-red-200">Cerrar sesión</button>
+        <div class="header-right">
+          <span class="user-chip" id="userLabel" hidden></span>
+          <button type="button" class="logout" id="logoutButton">Cerrar sesión</button>
         </div>
       </div>
-    </header>
+    </div>
 
-    <main class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-      <div class="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-        <section class="rounded-[30px] border border-white/10 bg-white/5 p-3 shadow-2xl shadow-violet-500/10 backdrop-blur-xl sm:p-4">
-          <div class="rounded-[24px] border border-violet-500/20 bg-slate-950/80 p-3">
-            <div id="reader" class="min-h-[300px] overflow-hidden rounded-[20px] bg-slate-900"></div>
+    <div class="layout">
+      <div class="panel">
+        <span class="section-title">Escáner</span>
+        <div class="scan-viewport" style="margin-top:12px;">
+          <div id="reader"></div>
+          <div class="scan-guide" id="scanGuide">
+            <div class="scan-frame"></div>
+            <span class="scan-hint" id="scanHint">Apuntá la cámara al QR del ticket</span>
           </div>
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 px-2">
-            <p class="text-sm text-slate-300">Apunta la cámara al código QR del ticket.</p>
-            <button id="restartScan" type="button" class="rounded-full border border-white/15 bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:border-violet-400 hover:text-violet-100">Escanear de nuevo</button>
-          </div>
-        </section>
+        </div>
+        <div class="scan-footer">
+          <p id="cameraState">Preparando cámara…</p>
+          <button type="button" class="btn-line" id="restartScan">Reiniciar escáner</button>
+        </div>
 
-        <aside class="rounded-[30px] border border-white/10 bg-slate-900/90 p-5 sm:p-6">
-          <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Validación</p>
-          <h2 class="mt-3 text-3xl font-black text-white">Estado del acceso</h2>
+        <div class="result" id="resultPanel" hidden>
+          <div class="result-icon" id="resultIcon"></div>
+          <h3 id="resultStatus"></h3>
+          <p id="resultDetail"></p>
+        </div>
 
-          <div id="resultPanel" class="mt-6 hidden rounded-[24px] border border-emerald-500/30 bg-emerald-500/10 p-5 text-center">
-            <div id="resultIcon" class="text-5xl font-black">✓</div>
-            <p id="resultStatus" class="mt-3 text-2xl font-black text-white">PERMITIDO</p>
-            <p id="resultDetail" class="mt-2 text-sm text-slate-200"></p>
-          </div>
-
-          <div class="mt-6 space-y-3 text-sm text-slate-300">
-            <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
-              <span>Permisos</span>
-              <span id="cameraState" class="font-bold text-amber-300">Esperando...</span>
-            </div>
-            <div class="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5">
-              <span>Rol</span>
-              <span id="roleState" class="font-bold text-white">staff</span>
-            </div>
-          </div>
-
-          <div id="adminGenerator" class="mt-6 hidden rounded-[24px] border border-violet-400/30 bg-violet-500/10 p-4">
-            <p class="text-xs uppercase tracking-[0.25em] text-violet-200">Administración</p>
-            <h3 class="mt-2 text-xl font-black text-white">Generar QR</h3>
-
-            <form id="adminQrForm" class="mt-4 space-y-3">
-              <input id="adminName" type="text" placeholder="Nombre del invitado" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-              <input id="adminEmail" type="email" placeholder="Correo del invitado" required class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-              <select id="adminEvent" required class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-white outline-none focus:border-violet-400">
-                <option value="">Selecciona un evento</option>
-              </select>
-              <select id="adminType" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-white outline-none focus:border-violet-400">
-                <option value="General">General</option>
-                <option value="VIP">VIP</option>
-              </select>
-              <input id="adminQty" type="number" min="1" max="200" value="1" class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-              <button type="submit" class="w-full rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-2.5 font-bold text-white">Generar QR</button>
-            </form>
-
-            <div id="adminQrResult" class="mt-4 hidden rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-100"></div>
-            <div id="adminQrList" class="mt-4 space-y-3"></div>
-
-            <div id="paymentApproval" class="mt-6 border-t border-white/10 pt-5">
-              <p class="text-xs uppercase tracking-[0.25em] text-violet-200">Pagos manuales</p>
-              <p class="mt-2 text-xs text-slate-300">Confirma la referencia recibida para activar el QR del comprador.</p>
-              <div class="mt-3 flex items-center justify-between gap-3">
-                <p class="text-sm font-bold text-white">Solicitudes pendientes</p>
-                <button id="refreshPayments" type="button" class="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-violet-400">Actualizar</button>
-              </div>
-              <div id="pendingPayments" class="mt-3 space-y-3"></div>
-              <form id="paymentApprovalForm" class="mt-3 space-y-3">
-                <input id="paymentTicketId" type="text" placeholder="ID del ticket" required class="w-full rounded-xl border border-white/10 bg-slate-950/80 px-3 py-2.5 text-white outline-none focus:border-violet-400" />
-                <button type="submit" class="w-full rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2.5 font-bold text-emerald-100">Confirmar pago y activar QR</button>
-              </form>
-              <div id="paymentApprovalResult" class="mt-3 hidden rounded-xl p-3 text-xs"></div>
-
-              <div class="mt-6 border-t border-white/10 pt-5">
-                <div class="flex items-center justify-between gap-3">
-                  <div>
-                    <p class="text-xs uppercase tracking-[0.25em] text-violet-200">Entradas</p>
-                    <p class="mt-2 text-sm font-bold text-white">Entradas generadas</p>
-                  </div>
-                  <button id="refreshTickets" type="button" class="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-violet-400">Actualizar</button>
-                </div>
-                <div id="generatedTickets" class="mt-3 max-h-80 space-y-3 overflow-y-auto"></div>
-              </div>
-            </div>
-          </div>
-        </aside>
+        <div class="status-row"><span>Rol</span><b id="roleState">—</b></div>
+        <div class="status-row"><span>Cámara</span><b id="cameraPerm">—</b></div>
       </div>
-    </main>
+
+      <div class="panel">
+        <div id="paymentApproval">
+          <span class="section-title">Pagos</span>
+          <div class="section-head">
+            <h4>Pagos pendientes</h4>
+            <button type="button" class="refresh" id="refreshPayments">Actualizar</button>
+          </div>
+          <div class="list-col" id="pendingPayments"></div>
+
+          <form id="paymentApprovalForm" class="form-grid">
+            <input class="form-full" id="paymentTicketId" type="text" placeholder="Aprobar por ID de ticket (pegá el uuid)" autocomplete="off" />
+            <button type="submit" class="gen-btn">Confirmar pago por ID</button>
+          </form>
+          <div class="aviso" id="paymentApprovalResult" hidden role="status"></div>
+        </div>
+
+        <div id="adminGenerator" hidden>
+          <div class="section-head">
+            <h4>Generar QR de cortesía</h4>
+          </div>
+          <form class="form-grid" id="adminQrForm">
+            <input class="form-full" id="adminName" type="text" placeholder="Nombre del invitado" autocomplete="off" />
+            <input class="form-full" id="adminEmail" type="email" required placeholder="Correo del invitado" autocomplete="off" />
+            <select id="adminEvent" required></select>
+            <select id="adminType">
+              <option value="General">General</option>
+              <option value="VIP">VIP</option>
+            </select>
+            <input class="form-full" id="adminQty" type="number" min="1" max="20" value="1" />
+            <button type="submit" class="gen-btn" id="adminQrButton">Generar QR</button>
+          </form>
+          <div class="aviso" id="adminQrResult" hidden role="status"></div>
+          <div class="qr-grid" id="adminQrList"></div>
+        </div>
+
+        <div id="ticketsSection">
+          <div class="section-head">
+            <h4>Entradas generadas</h4>
+            <button type="button" class="refresh" id="refreshTickets">Actualizar</button>
+          </div>
+          <div class="list-col" id="generatedTickets"></div>
+        </div>
+      </div>
+    </div>
 
     <script>
+      const $ = (sel) => document.querySelector(sel);
+
+      // Todo lo que pintamos aquí lo escribió un comprador desde internet: el
+      // nombre, el correo y el número de comprobante son texto libre. Sin
+      // escapar, cualquiera podría ejecutar código en el navegador del admin
+      // que aprueba pagos, con su sesión abierta.
+      function esc(valor) {
+        return String(valor == null ? '' : valor)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+      }
+
+      function formatCRC(value) {
+        return new Intl.NumberFormat('es-CR', {
+          style: 'currency', currency: 'CRC',
+          minimumFractionDigits: 0, maximumFractionDigits: 0
+        }).format(Number(value || 0));
+      }
+
+      function formatFecha(value) {
+        if (!value) return '—';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return new Intl.DateTimeFormat('es-CR', { day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date);
+      }
+
+      const ICONO_CORREO = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>';
+      const ICONO_TEL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .7 3a2 2 0 0 1-.5 2L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2-.5c1 .4 2 .6 3 .7a2 2 0 0 1 1.7 2Z"/></svg>';
+      const TIC = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
+      const EQUIS = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+
       let supabaseClient = null;
       let currentSession = null;
+      let scanner = null;
+      let processing = false;
+      let sinpeDestino = null;
 
       async function initSupabase() {
         try {
@@ -120,6 +251,7 @@
             window.location.href = '/login';
             return false;
           }
+          sinpeDestino = config.paymentPhone || null;
           supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
 
           // supabase-js renueva el token solo, en segundo plano. Sin esto,
@@ -134,7 +266,7 @@
           return true;
         } catch (error) {
           console.error('No se pudo inicializar el panel:', error);
-          cameraState.textContent = 'No se pudo cargar el panel. Revisa la conexión y recarga la página.';
+          $('#cameraState').textContent = 'No se pudo cargar el panel. Revisá la conexión y recargá.';
           return false;
         }
       }
@@ -144,83 +276,36 @@
       }
 
       async function authFetch(url, options = {}) {
-        return fetch(url, {
-          ...options,
-          headers: { ...(options.headers || {}), ...authHeaders() }
-        });
+        return fetch(url, { ...options, headers: { ...(options.headers || {}), ...authHeaders() } });
       }
 
-      const resultPanel = document.querySelector('#resultPanel');
-      const resultIcon = document.querySelector('#resultIcon');
-      const resultStatus = document.querySelector('#resultStatus');
-      const resultDetail = document.querySelector('#resultDetail');
-      const cameraState = document.querySelector('#cameraState');
-      const roleState = document.querySelector('#roleState');
-      const userLabel = document.querySelector('#userLabel');
-      const logoutButton = document.querySelector('#logoutButton');
-      const restartButton = document.querySelector('#restartScan');
-      const adminGenerator = document.querySelector('#adminGenerator');
-      const adminQrForm = document.querySelector('#adminQrForm');
-      const adminEmail = document.querySelector('#adminEmail');
-      const adminEvent = document.querySelector('#adminEvent');
-      const adminType = document.querySelector('#adminType');
-      const adminQrResult = document.querySelector('#adminQrResult');
-      const adminQrList = document.querySelector('#adminQrList');
-      const paymentApprovalForm = document.querySelector('#paymentApprovalForm');
-      const paymentApprovalResult = document.querySelector('#paymentApprovalResult');
-      const pendingPayments = document.querySelector('#pendingPayments');
-      const refreshPaymentsButton = document.querySelector('#refreshPayments');
-      const generatedTickets = document.querySelector('#generatedTickets');
-      const refreshTicketsButton = document.querySelector('#refreshTickets');
-
-      let scanner = null;
-      let processing = false;
-
-      async function loadAdminEvents() {
-        try {
-          const response = await fetch('/api/eventos');
-          const data = await response.json();
-          if (!response.ok) return;
-          adminEvent.innerHTML = '<option value="">Selecciona un evento</option>' + (data.eventos || []).map((event) => `<option value="${event.id}">${event.nombre} · ${formatCRC(event.precio)}</option>`).join('');
-        } catch (error) {
-          console.error('No se pudieron cargar los eventos:', error);
-        }
+      function avisar(elemento, mensaje, bien) {
+        elemento.textContent = mensaje;
+        elemento.className = `aviso ${bien ? 'bien' : 'malo'}`;
+        elemento.hidden = false;
       }
 
-      function showResult(allowed, message) {
-        resultPanel.className = `mt-6 rounded-[24px] p-5 text-center ${allowed ? 'border border-emerald-500/30 bg-emerald-500/10' : 'border border-red-500/30 bg-red-500/10'}`;
-        resultPanel.classList.remove('hidden');
-        resultIcon.textContent = allowed ? '✓' : '✕';
-        resultStatus.textContent = allowed ? 'PERMITIDO' : 'DENEGADO';
-        resultDetail.textContent = message;
-      }
+      /* -------------------------------------------------------- sesión */
 
       async function checkSession() {
-        if (!currentSession) {
-          window.location.href = '/login';
-          return;
-        }
+        if (!currentSession) { window.location.href = '/login'; return; }
 
         try {
           const response = await authFetch('/api/session-status');
           const data = await response.json();
+          if (!data.authenticated) { window.location.href = '/login'; return; }
 
-          if (!data.authenticated) {
-            window.location.href = '/login';
-            return;
-          }
+          $('#userLabel').textContent = `${data.user.name} · ${data.user.role}`;
+          $('#userLabel').hidden = false;
+          $('#roleState').textContent = data.user.role;
 
-          userLabel.textContent = `${data.user.name} · ${data.user.role}`;
-          userLabel.classList.remove('hidden');
-          roleState.textContent = data.user.role;
-
-          if (data.user.role === 'admin' || data.user.role === 'staff') {
-            adminGenerator.classList.remove('hidden');
+          if (['admin', 'staff'].includes(data.user.role)) {
+            $('#adminGenerator').hidden = false;
           }
           if (data.user.role !== 'admin') {
-            document.querySelector('#paymentApproval').classList.add('hidden');
-          }
-          if (data.user.role === 'admin') {
+            $('#paymentApproval').hidden = true;
+            $('#ticketsSection').hidden = true;
+          } else {
             loadPendingPayments();
             loadGeneratedTickets();
           }
@@ -230,34 +315,44 @@
         }
       }
 
+      /* ------------------------------------------------- pagos pendientes */
+
       function renderPendingPayments(tickets) {
+        const caja = $('#pendingPayments');
         if (!tickets.length) {
-          pendingPayments.innerHTML = '<p class="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-slate-400">No hay solicitudes pendientes.</p>';
+          caja.innerHTML = '<div class="empty">No hay solicitudes pendientes.</div>';
           return;
         }
 
-        pendingPayments.innerHTML = tickets.map((ticket) => `
-          <article class="rounded-xl border border-amber-400/20 bg-amber-500/10 p-3">
-            <div class="flex items-start justify-between gap-3">
+        caja.innerHTML = tickets.map((t) => `
+          <div class="row-card">
+            <div class="row-top">
               <div>
-                <p class="text-sm font-bold text-white">${ticket.nombre}</p>
-                <p class="mt-1 text-xs text-slate-300">${ticket.evento} · ${formatCRC(ticket.precio)}</p>
-                <p class="mt-1 text-xs text-slate-400">${ticket.correo}</p>
-                <p class="mt-2 break-all text-[11px] text-amber-100">Referencia: ${ticket.referenciaPago}</p>
+                <b>${esc(t.nombre)}</b>
+                <div class="meta">${esc(t.evento)} · ${esc(t.tipoEntrada)} · ${formatCRC(t.precio)}</div>
               </div>
-              <button type="button" data-ticket-id="${ticket.id}" class="approvePayment rounded-lg bg-emerald-500/20 px-3 py-2 text-xs font-bold text-emerald-100 hover:bg-emerald-500/30">Aprobar</button>
+              <button type="button" class="approve" data-ticket="${esc(t.id)}">Aprobar</button>
             </div>
-            <p class="mt-2 break-all text-[10px] text-slate-500">${ticket.id}</p>
-          </article>
+            <div class="contact-row">
+              <span>${ICONO_CORREO}${esc(t.correo)}</span>
+              <span>${ICONO_TEL}${esc(t.telefono || '—')}</span>
+              <span>${esc(formatFecha(t.creadoEn))}</span>
+            </div>
+            <div class="verify-block">
+              <span class="verify-label">Verificar pago</span>
+              <div class="verify-grid">
+                <div><span>Método</span><b>SINPE Móvil</b></div>
+                <div><span>Cuenta destino</span><b>${esc(sinpeDestino || 'Sin configurar')}</b></div>
+                <div><span>Comprobante del comprador</span><b>${esc(t.referenciaPago || '—')}</b></div>
+                <div><span>Monto esperado</span><b>${formatCRC(t.precio)}</b></div>
+              </div>
+            </div>
+          </div>
         `).join('');
 
-        pendingPayments.querySelectorAll('.approvePayment').forEach((button) => {
-          button.addEventListener('click', () => confirmPayment(button.dataset.ticketId));
+        caja.querySelectorAll('.approve').forEach((boton) => {
+          boton.addEventListener('click', () => confirmPayment(boton.dataset.ticket, boton));
         });
-      }
-
-      function formatCRC(value) {
-        return new Intl.NumberFormat('es-CR', { style: 'currency', currency: 'CRC', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value || 0));
       }
 
       async function loadPendingPayments() {
@@ -267,41 +362,49 @@
           if (!response.ok) throw new Error(data.mensaje || 'No se pudieron cargar los pagos.');
           renderPendingPayments(data.tickets || []);
         } catch (error) {
-          pendingPayments.innerHTML = `<p class="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-100">${error.message}</p>`;
+          $('#pendingPayments').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
         }
       }
 
+      async function confirmPayment(ticketId, boton) {
+        if (boton) { boton.disabled = true; boton.textContent = 'Aprobando…'; }
+        try {
+          const response = await authFetch(`/api/admin/confirmar-pago/${encodeURIComponent(ticketId)}`, { method: 'POST' });
+          const data = await response.json();
+          avisar($('#paymentApprovalResult'), data.mensaje || 'No se pudo confirmar el pago.', response.ok);
+          if (response.ok) { loadPendingPayments(); loadGeneratedTickets(); }
+        } catch (error) {
+          avisar($('#paymentApprovalResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          if (boton) { boton.disabled = false; boton.textContent = 'Aprobar'; }
+        }
+      }
+
+      /* ----------------------------------------------- entradas generadas */
+
+      function badgeDe(estado) {
+        if (estado === 'INGRESADO') return 'badge-used';
+        if (estado === 'PENDIENTE_PAGO') return 'badge-pending';
+        return 'badge-active';
+      }
+
       function renderGeneratedTickets(tickets) {
+        const caja = $('#generatedTickets');
         if (!tickets.length) {
-          generatedTickets.innerHTML = '<p class="rounded-xl border border-white/10 bg-white/5 p-3 text-xs text-slate-400">Todavía no hay entradas generadas.</p>';
+          caja.innerHTML = '<div class="empty">Todavía no hay entradas generadas.</div>';
           return;
         }
-
-        generatedTickets.innerHTML = tickets.map((ticket) => {
-          const origin = ticket.generadoPor ? 'Admin' : (ticket.metodoPago ? 'Compra' : 'Sistema');
-          const statusClass = ticket.estado === 'INGRESADO'
-            ? 'bg-slate-500/20 text-slate-200'
-            : ticket.estado === 'PENDIENTE_PAGO'
-              ? 'bg-amber-500/20 text-amber-100'
-              : 'bg-emerald-500/20 text-emerald-100';
-          return `
-            <article class="rounded-xl border border-white/10 bg-slate-950/80 p-3">
-              <div class="flex items-start justify-between gap-3">
-                <div class="min-w-0">
-                  <p class="truncate text-sm font-bold text-white">${ticket.nombre || 'Sin nombre'}</p>
-                  <p class="mt-1 text-xs text-slate-300">${ticket.evento} · ${ticket.tipoEntrada}</p>
-                  <p class="mt-1 truncate text-xs text-slate-400">${ticket.correo || 'Sin correo'}</p>
-                </div>
-                <span class="shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${statusClass}">${ticket.estado}</span>
+        caja.innerHTML = tickets.map((t) => `
+          <div class="row-card">
+            <div class="row-top">
+              <div>
+                <b>${esc(t.nombre)}</b>
+                <div class="meta">${esc(t.evento)} · ${esc(t.tipoEntrada)} · ${esc(t.generadoPor ? 'Cortesía' : 'Compra')}</div>
               </div>
-              <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                <span>${origin} · ${formatCRC(ticket.precio)}</span>
-                <a href="/ticket.html?ticketId=${encodeURIComponent(ticket.id)}" target="_blank" rel="noreferrer" class="font-semibold text-violet-200 hover:text-white">Ver ticket</a>
-              </div>
-              <p class="mt-1 break-all text-[10px] text-slate-500">${ticket.id}</p>
-            </article>
-          `;
-        }).join('');
+              <span class="badge ${badgeDe(t.estado)}">${esc(t.estado)}</span>
+            </div>
+          </div>
+        `).join('');
       }
 
       async function loadGeneratedTickets() {
@@ -311,23 +414,19 @@
           if (!response.ok) throw new Error(data.mensaje || 'No se pudieron cargar las entradas.');
           renderGeneratedTickets(data.tickets || []);
         } catch (error) {
-          generatedTickets.innerHTML = `<p class="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-100">${error.message}</p>`;
+          $('#generatedTickets').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
         }
       }
 
-      async function confirmPayment(ticketId) {
-        try {
-          const response = await authFetch(`/api/admin/confirmar-pago/${encodeURIComponent(ticketId)}`, { method: 'POST' });
-          const data = await response.json();
-          paymentApprovalResult.textContent = data.mensaje || 'No se pudo confirmar el pago.';
-          paymentApprovalResult.className = `mt-3 rounded-xl p-3 text-xs ${response.ok ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border border-red-500/30 bg-red-500/10 text-red-100'}`;
-          paymentApprovalResult.classList.remove('hidden');
-          if (response.ok) loadPendingPayments();
-        } catch (error) {
-          paymentApprovalResult.textContent = 'No se pudo conectar con el servidor.';
-          paymentApprovalResult.className = 'mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-100';
-          paymentApprovalResult.classList.remove('hidden');
-        }
+      /* ------------------------------------------------------- escáner */
+
+      function showResult(allowed, message) {
+        const panel = $('#resultPanel');
+        panel.className = `result ${allowed ? 'result-allow' : 'result-deny'}`;
+        panel.hidden = false;
+        $('#resultIcon').innerHTML = allowed ? TIC : EQUIS;
+        $('#resultStatus').textContent = allowed ? 'PERMITIDO' : 'DENEGADO';
+        $('#resultDetail').textContent = message;
       }
 
       async function validateTicket(ticketId) {
@@ -337,155 +436,146 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ ticketId })
           });
-
           const data = await response.json();
-          showResult(Boolean(data.permitido), data.mensaje || 'No se pudo validar el ticket.');
+          const detalle = data.permitido && data.nombre
+            ? `${data.nombre} · ${data.evento || ''} · ${data.tipoEntrada || ''}`
+            : (data.mensaje || 'No se pudo validar el ticket.');
+          showResult(Boolean(data.permitido), detalle);
         } catch (error) {
           showResult(false, 'No se pudo conectar con el servidor.');
         }
       }
 
-      async function onScanError(err) {
-        console.warn('Scan error:', err);
-      }
-
       async function onScanSuccess(decodedText) {
         if (processing) return;
         processing = true;
-        await validateTicket(decodedText.trim());
-        setTimeout(() => {
-          processing = false;
-        }, 1500);
+        await validateTicket(String(decodedText).trim());
+        setTimeout(() => { processing = false; }, 1500);
       }
 
       function startScanner() {
         if (typeof Html5Qrcode === 'undefined') {
-          cameraState.textContent = 'Librería QR no disponible';
-          showResult(false, 'No se pudo cargar el lector QR. Recarga la página o verifica la conexión.');
+          $('#cameraState').textContent = 'Librería QR no disponible';
+          $('#cameraPerm').textContent = 'Sin librería';
+          showResult(false, 'No se pudo cargar el lector QR. Recargá la página o verificá la conexión.');
           return;
         }
 
-        if (scanner) {
-          scanner.clear().catch(() => {});
-        }
-
+        if (scanner) scanner.clear().catch(() => {});
         scanner = new Html5Qrcode('reader');
+
         Html5Qrcode.getCameras().then((devices) => {
-          if (!devices || devices.length === 0) {
-            cameraState.textContent = 'Sin cámara';
+          if (!devices || !devices.length) {
+            $('#cameraState').textContent = 'Sin cámara';
+            $('#cameraPerm').textContent = 'Sin cámara';
             return;
           }
 
-          cameraState.textContent = 'Camara activa';
-          const cameraId = devices[0].id;
-
           scanner.start(
-            cameraId,
-            {
-              fps: 10,
-              qrbox: { width: 260, height: 260 },
-              aspectRatio: 1,
-              disableFlip: false
-            },
+            devices[0].id,
+            { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1, disableFlip: false },
             onScanSuccess,
-            onScanError
-          ).catch((error) => {
+            () => {}
+          ).then(() => {
+            $('#cameraState').textContent = 'Cámara activa';
+            $('#cameraPerm').textContent = 'Concedidos';
+            $('#scanGuide').hidden = true;
+          }).catch((error) => {
             console.error('No se pudo iniciar la cámara:', error);
-            cameraState.textContent = 'Error de cámara';
+            $('#cameraState').textContent = 'Error de cámara';
+            $('#cameraPerm').textContent = 'Error';
+            $('#scanHint').textContent = 'No se pudo abrir la cámara. Revisá los permisos del navegador.';
           });
         }).catch((error) => {
           console.error('Error al obtener cámaras:', error);
-          cameraState.textContent = 'Sin permisos';
+          $('#cameraState').textContent = 'Sin permisos';
+          $('#cameraPerm').textContent = 'Denegados';
+          $('#scanHint').textContent = 'El navegador no dio permiso de cámara.';
         });
       }
 
-      adminQrForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
+      /* --------------------------------------------------------- admin */
 
-        const payload = {
-          nombre: document.querySelector('#adminName').value.trim() || 'Invitado',
-          correo: adminEmail.value.trim(),
-          eventoId: adminEvent.value,
-          tipoEntrada: adminType.value,
-          cantidad: Number(document.querySelector('#adminQty').value || 1)
-        };
+      async function loadAdminEvents() {
+        try {
+          const response = await fetch('/api/eventos');
+          const data = await response.json();
+          if (!response.ok) return;
+          $('#adminEvent').innerHTML = '<option value="">Seleccioná un evento</option>' +
+            (data.eventos || []).map((ev) =>
+              `<option value="${esc(ev.id)}">${esc(ev.nombre)} · ${formatCRC(ev.precio)}</option>`
+            ).join('');
+        } catch (error) {
+          console.error('No se pudieron cargar los eventos:', error);
+        }
+      }
+
+      $('#adminQrForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const boton = $('#adminQrButton');
+        boton.disabled = true;
+        boton.textContent = 'Generando…';
 
         try {
           const response = await authFetch('/api/admin/crear-qr', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({
+              nombre: $('#adminName').value.trim() || 'Invitado',
+              correo: $('#adminEmail').value.trim(),
+              eventoId: $('#adminEvent').value,
+              tipoEntrada: $('#adminType').value,
+              cantidad: Number($('#adminQty').value || 1)
+            })
           });
-
           const data = await response.json();
-          if (!response.ok) {
-            adminQrResult.textContent = data.mensaje || 'No se pudieron generar los QR.';
-            adminQrResult.className = 'mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-100';
-            adminQrResult.classList.remove('hidden');
-            return;
-          }
+          avisar($('#adminQrResult'), data.mensaje || 'No se pudieron generar los QR.', response.ok);
+          if (!response.ok) return;
 
-          adminQrResult.textContent = data.mensaje;
-          adminQrResult.className = 'mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-xs text-emerald-100';
-          adminQrResult.classList.remove('hidden');
-
-          adminQrList.innerHTML = (data.tickets || []).map((ticket) => `
-            <div class="rounded-2xl border border-white/10 bg-slate-950/90 p-3">
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <p class="text-xs uppercase tracking-[0.2em] text-violet-200">${ticket.tipoEntrada}</p>
-                  <p class="mt-1 text-sm font-bold text-white">${ticket.nombre}</p>
-                </div>
-                <span class="rounded-full bg-emerald-500/20 px-2 py-1 text-[10px] font-bold text-emerald-200">Activo</span>
-              </div>
-              <img src="${ticket.qrDataUrl}" alt="QR de ${ticket.nombre}" class="mt-3 mx-auto h-28 w-28 rounded-xl bg-white p-2" />
-              <p class="mt-2 break-all text-[10px] text-slate-400">${ticket.id}</p>
+          $('#adminQrList').innerHTML = (data.tickets || []).map((t) => `
+            <div class="qr-card">
+              <p class="tipo">${esc(t.tipoEntrada)}</p>
+              <p class="nombre">${esc(t.nombre)}</p>
+              <img src="${esc(t.qrDataUrl)}" alt="QR de ${esc(t.nombre)}" />
+              <p class="id">${esc(t.id)}</p>
             </div>
           `).join('');
+          loadGeneratedTickets();
         } catch (error) {
-          adminQrResult.textContent = 'No se pudo generar el QR.';
-          adminQrResult.className = 'mt-4 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-100';
-          adminQrResult.classList.remove('hidden');
+          avisar($('#adminQrResult'), 'No se pudo generar el QR.', false);
+        } finally {
+          boton.disabled = false;
+          boton.textContent = 'Generar QR';
         }
       });
 
-      paymentApprovalForm.addEventListener('submit', async (event) => {
+      $('#paymentApprovalForm').addEventListener('submit', async (event) => {
         event.preventDefault();
-        const ticketId = document.querySelector('#paymentTicketId').value.trim();
-        try {
-          const response = await authFetch(`/api/admin/confirmar-pago/${encodeURIComponent(ticketId)}`, { method: 'POST' });
-          const data = await response.json();
-          paymentApprovalResult.textContent = data.mensaje || 'No se pudo confirmar el pago.';
-          paymentApprovalResult.className = `mt-3 rounded-xl p-3 text-xs ${response.ok ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border border-red-500/30 bg-red-500/10 text-red-100'}`;
-          paymentApprovalResult.classList.remove('hidden');
-          if (response.ok) paymentApprovalForm.reset();
-        } catch (error) {
-          paymentApprovalResult.textContent = 'No se pudo conectar con el servidor.';
-          paymentApprovalResult.className = 'mt-3 rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-100';
-          paymentApprovalResult.classList.remove('hidden');
-        }
+        const ticketId = $('#paymentTicketId').value.trim();
+        if (!ticketId) return;
+        await confirmPayment(ticketId, null);
+        $('#paymentApprovalForm').reset();
       });
 
-      refreshPaymentsButton.addEventListener('click', loadPendingPayments);
-      refreshTicketsButton.addEventListener('click', loadGeneratedTickets);
+      $('#refreshPayments').addEventListener('click', loadPendingPayments);
+      $('#refreshTickets').addEventListener('click', loadGeneratedTickets);
+      $('#restartScan').addEventListener('click', () => {
+        $('#resultPanel').hidden = true;
+        $('#scanGuide').hidden = false;
+        startScanner();
+      });
 
-      async function logout() {
+      $('#logoutButton').addEventListener('click', async () => {
         try {
           if (supabaseClient) await supabaseClient.auth.signOut();
         } finally {
           window.location.href = '/login';
         }
-      }
-
-      logoutButton.addEventListener('click', logout);
-      restartButton.addEventListener('click', () => {
-        showResult(false, 'Escaneando nuevo comprobante...');
-        startScanner();
       });
 
       (async () => {
-        const ready = await initSupabase();
-        if (!ready) return;
+        const listo = await initSupabase();
+        if (!listo) return;
         checkSession();
         loadAdminEvents();
         startScanner();

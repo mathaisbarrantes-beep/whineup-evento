@@ -418,6 +418,8 @@ app.get("/api/ticket/:ticketId", requireSupabase, async (req, res) => {
       ticket: {
         id: ticket.id,
         evento: ticket.evento,
+        eventoFecha: ticket.eventoFecha,
+        eventoLugar: ticket.eventoLugar,
         nombre: ticket.nombre,
         tipoEntrada: ticket.tipoEntrada,
         creadoEn: ticket.creadoEn,

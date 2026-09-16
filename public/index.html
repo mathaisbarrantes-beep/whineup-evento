@@ -4,468 +4,664 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WhineUp | Entradas para eventos</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" />
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-    <link rel="stylesheet" href="/theme.css" />
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              brand: {
-                50: '#f5f5f5',
-                100: '#e5e5e5',
-                500: '#737373',
-                600: '#404040',
-                700: '#171717'
-              },
-              accent: '#ffffff'
-            },
-            boxShadow: {
-              glow: '0 20px 40px rgba(255, 255, 255, 0.12)'
-            }
-          }
-        }
-      };
-    </script>
     <style>
-      body {
-        background:
-          radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 25%),
-          linear-gradient(180deg, #050505 0%, #171717 100%);
+      :root{
+        --bg:oklch(9% 0 0);
+        --surface-1:oklch(14% 0 0);
+        --surface-2:oklch(19% 0 0);
+        --surface-3:oklch(25% 0 0);
+        --border:oklch(100% 0 0 / 12%);
+        --border-strong:oklch(100% 0 0 / 30%);
+        --text:oklch(97% 0 0);
+        --text-dim:oklch(74% 0 0);
+        --text-faint:oklch(52% 0 0);
+        --white:oklch(100% 0 0);
       }
+      *{box-sizing:border-box;}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+      a{color:var(--text);text-decoration:none;}
+      a:hover{color:var(--white);}
+      h1,h2,h3{font-family:'Anton','Arial Narrow',sans-serif;font-weight:400;letter-spacing:.01em;margin:0;text-transform:uppercase;}
+      button{font-family:inherit;cursor:pointer;}
+      input{font-family:inherit;}
+      [hidden]{display:none !important;}
+      :focus-visible{outline:2px solid var(--white);outline-offset:2px;}
+
+      .grain{position:fixed;inset:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;z-index:1;background-repeat:repeat;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+      .page{position:relative;min-height:100%;}
+
+      .header{position:sticky;top:0;z-index:20;background:oklch(9% 0 0 / 88%);backdrop-filter:blur(16px);border-bottom:1px solid var(--border);}
+      .header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px 32px;max-width:1180px;margin:0 auto;}
+      .brand{display:flex;align-items:center;gap:12px;}
+      .brand img{width:44px;height:44px;border-radius:999px;display:block;object-fit:cover;}
+      .brand-name{font-family:'Anton',sans-serif;font-size:18px;letter-spacing:.02em;}
+      .brand-sub{font-size:10px;letter-spacing:.24em;color:var(--text-faint);text-transform:uppercase;margin-top:2px;}
+      .nav{display:flex;align-items:center;gap:28px;font-size:14px;color:var(--text-dim);}
+      .nav a{font-weight:500;}
+      .staff-link{display:flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:9px 18px;font-size:13px;font-weight:600;white-space:nowrap;}
+      .staff-link:hover{border-color:var(--white);}
+
+      .hero{padding:88px 32px 64px;}
+      .hero-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center;}
+      .eyebrow{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border-strong);border-radius:999px;padding:7px 16px;font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);}
+      .hero h1{font-size:clamp(40px,5.4vw,72px);line-height:.98;margin-top:22px;max-width:640px;}
+      .lede{margin-top:22px;font-size:17px;line-height:1.55;color:var(--text-dim);max-width:480px;}
+      .hero-actions{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap;}
+      .btn-primary{background:var(--white);color:#0a0a0a;border:none;border-radius:999px;padding:15px 28px;font-size:15px;font-weight:700;display:inline-flex;align-items:center;gap:8px;}
+      .btn-primary:hover{background:oklch(90% 0 0);}
+      .btn-ghost{background:transparent;border:1px solid var(--border-strong);color:var(--text);border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;}
+      .btn-ghost:hover{border-color:var(--white);}
+      .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px;max-width:440px;}
+      .stat{border:1px solid var(--border);border-radius:16px;padding:14px 16px;background:var(--surface-1);}
+      .stat b{display:block;font-family:'Anton',sans-serif;font-size:22px;font-variant-numeric:tabular-nums;}
+      .stat span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);}
+
+      .hero-card{border:1px solid var(--border);border-radius:28px;padding:8px;background:var(--surface-1);}
+      .hero-card-inner{border-radius:22px;background:linear-gradient(155deg,var(--surface-2),oklch(11% 0 0));padding:26px;border:1px solid var(--border);}
+      .tag-live{font-size:10px;letter-spacing:.2em;text-transform:uppercase;border:1px solid var(--border-strong);border-radius:999px;padding:6px 12px;color:var(--text-dim);display:inline-block;}
+      .hero-card h2{font-size:34px;margin-top:22px;text-wrap:balance;}
+      .hero-card-meta{display:flex;flex-direction:column;gap:8px;margin-top:14px;font-size:14px;color:var(--text-dim);}
+      .hero-card-meta div{display:flex;align-items:center;gap:8px;}
+      .hero-card-price{margin-top:22px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-top:1px solid var(--border);padding-top:18px;}
+      .hero-card-price b{font-family:'Anton',sans-serif;font-size:22px;}
+
+      .events{padding:20px 32px 96px;}
+      .events-head{max-width:1180px;margin:0 auto 28px;}
+      .label{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--text-faint);margin:0;}
+      .events-head h2{font-size:30px;margin-top:8px;}
+      .events-grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:20px;}
+      .card{border:1px solid var(--border);border-radius:24px;padding:6px;background:var(--surface-1);transition:border-color .15s ease,transform .15s ease;}
+      .card:hover{border-color:var(--border-strong);transform:translateY(-2px);}
+      .card-inner{border-radius:19px;background:oklch(11% 0 0);padding:22px;border:1px solid var(--border);height:100%;display:flex;flex-direction:column;}
+      .card-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+      .card-tag{font-size:10px;letter-spacing:.16em;text-transform:uppercase;border:1px solid var(--border-strong);border-radius:999px;padding:5px 11px;color:var(--text-dim);white-space:nowrap;}
+      .card-price{font-family:'Anton',sans-serif;font-size:19px;}
+      .card h3{font-size:26px;margin-top:18px;text-wrap:balance;}
+      .card-meta{display:flex;flex-direction:column;gap:6px;margin-top:12px;font-size:13px;color:var(--text-dim);}
+      .card-meta div{display:flex;align-items:flex-start;gap:7px;}
+      .card-meta svg{flex-shrink:0;margin-top:2px;}
+      .card p{font-size:13px;color:var(--text-faint);line-height:1.5;margin-top:14px;flex-grow:1;}
+      .card-btn{margin-top:18px;width:100%;background:transparent;border:1px solid var(--border-strong);color:var(--text);border-radius:14px;padding:13px;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;}
+      .card-btn:hover{background:var(--white);color:#0a0a0a;border-color:var(--white);}
+      .events-empty{max-width:1180px;margin:0 auto;border:1px solid var(--border);border-radius:24px;padding:32px;background:var(--surface-1);color:var(--text-dim);font-size:15px;}
+
+      .faq{padding:0 32px 96px;}
+      .faq-inner{max-width:1180px;margin:0 auto;border:1px solid var(--border);border-radius:28px;padding:40px;background:var(--surface-1);}
+      .faq-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:24px;}
+      .faq-item{border:1px solid var(--border);border-radius:16px;padding:18px;background:oklch(11% 0 0);}
+      .faq-item h4{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:15px;margin:0;}
+      .faq-item p{font-size:13px;color:var(--text-dim);margin-top:8px;line-height:1.5;}
+
+      .footer{border-top:1px solid var(--border);padding:32px;text-align:center;font-size:13px;color:var(--text-faint);}
+      .footer a{color:var(--text-dim);margin:0 10px;}
+
+      .modal-overlay{position:fixed;inset:0;background:oklch(0% 0 0 / 72%);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:24px;z-index:50;}
+      .modal{width:100%;max-width:480px;max-height:88vh;overflow-y:auto;background:var(--surface-1);border:1px solid var(--border-strong);border-radius:26px;}
+      .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 24px 0;}
+      .modal-close{width:34px;height:34px;border-radius:999px;border:1px solid var(--border-strong);background:transparent;display:flex;align-items:center;justify-content:center;color:var(--text);flex-shrink:0;}
+      .modal-close:hover{border-color:var(--white);}
+      .steps{display:flex;align-items:center;gap:6px;}
+      .step-dot{width:26px;height:3px;border-radius:2px;background:var(--border-strong);}
+      .step-dot.on{background:#fff;}
+      .step-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);margin-left:4px;}
+      .modal-body{padding:20px 24px 28px;}
+      .event-mini{display:flex;align-items:center;gap:14px;border:1px solid var(--border);border-radius:16px;padding:14px;background:oklch(11% 0 0);}
+      .event-mini-badge{width:44px;height:44px;border-radius:12px;background:var(--surface-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+      .event-mini b{font-size:15px;display:block;}
+      .event-mini span{font-size:12px;color:var(--text-dim);}
+      .modal h3{font-size:24px;margin-top:18px;}
+      .modal-copy{font-size:14px;color:var(--text-dim);line-height:1.55;margin-top:8px;}
+      .field{margin-top:16px;}
+      .field label{display:block;font-size:12px;color:var(--text-dim);margin-bottom:7px;font-weight:500;}
+      .field input{width:100%;background:oklch(11% 0 0);border:1px solid var(--border);border-radius:12px;padding:12px 14px;color:var(--text);font-size:14px;outline:none;}
+      .field input:focus{border-color:var(--border-strong);}
+      .field input[readonly]{color:var(--text-faint);}
+      .pill-row{display:flex;gap:10px;margin-top:8px;}
+      .pill{flex:1;border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center;background:oklch(11% 0 0);color:var(--text);font-size:13px;font-weight:600;}
+      .pill.on{border-color:#fff;background:oklch(100% 0 0 / 12%);}
+      .pill:disabled{cursor:default;opacity:1;}
+      .pill-sub{display:block;font-size:11px;font-weight:400;color:var(--text-faint);margin-top:3px;}
+      .sinpe{margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:16px;background:oklch(11% 0 0);}
+      .sinpe-label{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-faint);margin:0;}
+      .sinpe-numero{font-family:'Anton',sans-serif;font-size:26px;margin:6px 0 0;letter-spacing:.02em;}
+      .sinpe-numero.falta{font-family:'Space Grotesk',sans-serif;font-size:15px;color:oklch(80% .13 85);}
+      .sinpe .nota{font-size:12px;color:var(--text-dim);line-height:1.5;margin:10px 0 0;}
+      .summary{margin-top:20px;border-top:1px solid var(--border);padding-top:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+      .summary b{font-family:'Anton',sans-serif;font-size:20px;}
+      .google-btn,.modal-cta{width:100%;background:var(--white);color:#0a0a0a;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:22px;}
+      .google-btn:hover,.modal-cta:hover{background:oklch(90% 0 0);color:#0a0a0a;}
+      .google-btn:disabled,.modal-cta:disabled{opacity:.35;cursor:not-allowed;}
+      .g-mark{width:20px;height:20px;border-radius:999px;background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;}
+      .modal-alt{width:100%;background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:14px;padding:13px;font-size:13px;font-weight:600;margin-top:10px;display:block;text-align:center;}
+      .modal-alt:hover{border-color:var(--border-strong);color:var(--text);}
+      .aviso{margin-top:16px;border-left:3px solid oklch(60% .19 25);padding:11px 14px;font-size:13px;line-height:1.5;color:oklch(80% .12 25);background:oklch(11% 0 0);}
+      .success{text-align:center;padding:8px 0 4px;}
+      .success-icon{width:64px;height:64px;border-radius:999px;border:1.5px solid var(--white);display:flex;align-items:center;justify-content:center;margin:0 auto;}
+      .success h3{margin-top:20px;}
+      .pending-badge{display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--border-strong);border-radius:999px;padding:6px 14px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-top:14px;}
+      .ticket-preview{margin-top:20px;border:1px solid var(--border);border-radius:18px;padding:18px;background:oklch(11% 0 0);text-align:left;}
+      .ticket-preview-row{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--border);color:var(--text-dim);}
+      .ticket-preview-row:last-child{border-bottom:none;}
+      .ticket-preview-row b{color:var(--text);font-weight:600;text-align:right;word-break:break-word;}
+
+      @media (max-width:900px){
+        .hero-inner{grid-template-columns:1fr;gap:40px;}
+        .faq-grid{grid-template-columns:1fr;}
+        .nav{display:none;}
+      }
+      @media (max-width:560px){
+        .header-inner,.hero,.events,.faq{padding-left:20px;padding-right:20px;}
+        .hero{padding-top:56px;}
+        .faq-inner{padding:26px 20px;}
+        .stat-row{grid-template-columns:1fr;max-width:none;}
+        .modal-overlay{padding:12px;}
+      }
+      @media (prefers-reduced-motion:reduce){*{transition:none !important;}}
     </style>
   </head>
-  <body class="min-h-screen text-slate-100">
-    <header class="sticky top-0 z-20 border-b border-white/10 bg-black/80 backdrop-blur-xl">
-      <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <div class="flex items-center gap-3">
-          <img src="/logo.png" alt="WhineUp CR" class="h-10 w-10 rounded-full border border-white/30 object-cover" />
-          <div>
-            <p class="text-lg font-black tracking-tight">WhineUp CR</p>
-            <p class="text-[10px] uppercase tracking-[0.22em] text-slate-400">Eventos</p>
+  <body>
+    <div class="page">
+      <div class="grain"></div>
+
+      <header class="header">
+        <div class="header-inner">
+          <div class="brand">
+            <img src="/logo.png" alt="WhineUp CR" />
+            <div>
+              <div class="brand-name">WhineUp CR</div>
+              <div class="brand-sub">Eventos</div>
+            </div>
           </div>
+          <nav class="nav">
+            <a href="#events">Eventos</a>
+            <a href="#faq">Preguntas</a>
+          </nav>
+          <a href="/login" class="staff-link">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Staff
+          </a>
         </div>
+      </header>
 
-        <nav class="hidden items-center gap-6 text-sm text-slate-300 md:flex">
-          <a href="#eventos" class="transition hover:text-white">Eventos</a>
-          <a href="#checkout" class="transition hover:text-white">Checkout</a>
-          <a href="#faq" class="transition hover:text-white">FAQ</a>
-        </nav>
-
-        <a href="/login" class="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:border-brand-400 hover:text-brand-100">Staff login</a>
-      </div>
-    </header>
-
-    <main>
-      <section class="mx-auto max-w-7xl px-4 pb-16 pt-12 sm:px-6 lg:px-8">
-        <div class="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+      <section class="hero">
+        <div class="hero-inner">
           <div>
-            <span class="inline-flex items-center rounded-full border border-brand-400/30 bg-brand-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-brand-100">Experiencias premium</span>
-            <h1 class="mt-6 max-w-xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Compra entradas para los eventos más esperados.
-            </h1>
-            <p class="mt-5 max-w-xl text-base text-slate-300 sm:text-lg">
-              Accede a conciertos, fiestas y experiencias culturales en segundos. Elige tu evento, compra sin crear cuenta y recibe tu entrada digital con código QR único.
-            </p>
-
-            <div class="mt-8 flex flex-wrap gap-4">
-              <a href="#eventos" class="rounded-full bg-gradient-to-r from-[#404040] to-black px-6 py-3 font-semibold text-white shadow-glow transition hover:scale-[1.02]">Ver eventos</a>
-              <a href="#checkout" class="rounded-full border border-white/15 bg-white/5 px-6 py-3 font-semibold text-slate-200 transition hover:border-white/25 hover:text-white">Compra rápida</a>
+            <span class="eyebrow">Entradas oficiales</span>
+            <h1>Tu próxima<br />noche empieza<br />acá.</h1>
+            <p class="lede">Entradas digitales para los eventos de WhineUp CR. Elegí tu fiesta, pagá por SINPE Móvil y recibí tu QR por correo — sin filas, sin papel.</p>
+            <div class="hero-actions">
+              <button type="button" class="btn-primary" id="verEventos">
+                Ver eventos
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+              <a href="#faq" class="btn-ghost">Cómo funciona</a>
             </div>
-
-            <div class="mt-8 grid max-w-md grid-cols-3 gap-4">
-              <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <p id="entradasCount" class="text-2xl font-black text-white">0</p>
-                <p class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">Entradas</p>
-              </div>
-              <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <p class="text-2xl font-black text-white">120+</p>
-                <p class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">Eventos</p>
-              </div>
-              <div class="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <p class="text-2xl font-black text-white">4.9</p>
-                <p class="mt-1 text-xs uppercase tracking-[0.2em] text-slate-400">Valoración</p>
-              </div>
+            <div class="stat-row">
+              <div class="stat"><b id="statEventos">—</b><span>Eventos activos</span></div>
+              <div class="stat"><b id="statEntradas">—</b><span>Entradas emitidas</span></div>
+              <div class="stat"><b>1</b><span>Uso por QR</span></div>
             </div>
           </div>
 
-          <aside class="rounded-[28px] border border-white/10 bg-white/5 p-4 shadow-2xl shadow-black/40 backdrop-blur-xl sm:p-6">
-            <div class="rounded-[24px] bg-[#121212]/90 p-5 ring-1 ring-white/10">
-              <div class="flex items-center justify-between">
-                <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Evento destacado</p>
-                <span class="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300">Disponible</span>
-              </div>
-
-              <div class="mt-6 rounded-[22px] bg-gradient-to-br from-[#1a1a1a] via-[#404040] to-black p-5">
-                <p class="text-sm font-medium text-neutral-200">HALLOWEEN PARTY</p>
-                <h2 class="mt-3 text-3xl font-black text-white">31 Oct 2026</h2>
-                <p class="mt-3 text-sm text-neutral-200">WhineUp CR</p>
-              </div>
-
-              <div class="mt-6 space-y-4 text-sm text-slate-300">
-                <div class="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-                  <span>Entrada General</span>
-                  <span class="font-bold text-white">₡45.000</span>
+          <div class="hero-card" id="heroCard" hidden>
+            <div class="hero-card-inner">
+              <span class="tag-live">● Disponible ahora</span>
+              <h2 id="heroNombre"></h2>
+              <div class="hero-card-meta">
+                <div>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                  <span id="heroFecha"></span>
+                </div>
+                <div>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+                  <span id="heroLugar"></span>
                 </div>
               </div>
+              <div class="hero-card-price">
+                <span style="font-size:13px;color:var(--text-dim);">Entrada <span id="heroCategoria"></span></span>
+                <b id="heroPrecio"></b>
+              </div>
             </div>
-          </aside>
-        </div>
-      </section>
-
-      <section id="eventos" class="mx-auto max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
-        <div class="mb-6 flex items-end justify-between gap-4">
-          <div>
-            <p class="text-sm uppercase tracking-[0.25em] text-neutral-300">Eventos</p>
-            <h2 class="mt-2 text-3xl font-black text-white">Elige tu próxima experiencia</h2>
-          </div>
-          <a href="#checkout" class="hidden text-sm font-semibold text-brand-100 md:inline-flex">Comprar ahora →</a>
-        </div>
-
-        <div id="eventCards" class="grid gap-5 md:grid-cols-2 xl:grid-cols-3"></div>
-      </section>
-
-      <section id="checkout" class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
-        <div class="grid gap-8 lg:grid-cols-[0.8fr_1.2fr]">
-          <div class="rounded-[28px] border border-white/10 bg-[#121212]/70 p-5 backdrop-blur-xl">
-            <p class="text-sm uppercase tracking-[0.25em] text-slate-400">Resumen</p>
-            <h3 class="mt-3 text-2xl font-black text-white">Tu selección</h3>
-
-            <div id="selectedEventCard" class="mt-5 rounded-2xl border border-white/20 bg-white/5 p-4"></div>
-
-            <div class="mt-5 space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
-              <div class="flex items-center justify-between"><span>Entrada</span><span id="summaryType">General</span></div>
-              <div class="flex items-center justify-between"><span>Precio</span><span id="summaryPrice" class="font-bold text-white">₡45.000</span></div>
-              <div class="flex items-center justify-between border-t border-white/10 pt-3"><span>Total</span><span id="summaryTotal" class="text-lg font-black text-white">₡45.000</span></div>
-            </div>
-          </div>
-
-          <div class="rounded-[28px] border border-white/10 bg-white/5 p-5 backdrop-blur-xl sm:p-7">
-            <p class="text-sm uppercase tracking-[0.25em] text-neutral-300">Checkout</p>
-            <h3 class="mt-3 text-3xl font-black text-white">Paga antes de generar tu entrada</h3>
-
-            <div id="authGate" class="mb-6 rounded-2xl border border-white/10 bg-[#121212]/80 p-4 text-sm text-slate-300">
-              <p id="authStatus">Inicia sesión con Google para comprar tu entrada.</p>
-              <button id="googleLoginButton" type="button" class="mt-3 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 font-semibold text-white transition hover:border-white/40">
-                Iniciar sesión con Google
-              </button>
-            </div>
-
-            <div id="checkoutFormWrap" class="hidden">
-            <form id="ticketForm" class="mt-6 space-y-5">
-              <div>
-                <label for="fullName" class="mb-2 block text-sm font-medium text-slate-200">Nombre completo</label>
-                <input id="fullName" name="nombre" type="text" required autocomplete="name" placeholder="Tu nombre y apellidos" class="w-full rounded-2xl border border-white/10 bg-[#121212]/80 px-4 py-3 text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20" />
-              </div>
-
-              <div>
-                <label for="email" class="mb-2 block text-sm font-medium text-slate-200">Email</label>
-                <input id="email" name="correo" type="email" required autocomplete="email" placeholder="tucorreo@ejemplo.com" class="w-full rounded-2xl border border-white/10 bg-[#121212]/80 px-4 py-3 text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20" />
-              </div>
-
-              <div>
-                <label for="phone" class="mb-2 block text-sm font-medium text-slate-200">Teléfono</label>
-                <input id="phone" name="telefono" type="tel" required autocomplete="tel" placeholder="+506 8888-0000" class="w-full rounded-2xl border border-white/10 bg-[#121212]/80 px-4 py-3 text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20" />
-              </div>
-
-              <div>
-                <p class="mb-2 block text-sm font-medium text-slate-200">Pago por SINPE Móvil</p>
-                <div class="rounded-2xl border border-white/10 bg-[#121212]/80 p-4">
-                  <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Transfiere a este número</p>
-                  <p id="sinpeNumero" class="mt-1 text-2xl font-black tracking-wide text-white">&mdash;</p>
-                  <p class="mt-3 text-xs leading-relaxed text-slate-400">Haz el SINPE Móvil por el monto exacto del evento y escribe abajo el número de comprobante que te devuelve tu banco. Tu entrada queda reservada de inmediato; el QR se activa cuando confirmemos el pago.</p>
-                </div>
-              </div>
-
-              <div id="paymentReferenceWrap">
-                <label for="paymentReference" class="mb-2 block text-sm font-medium text-slate-200">Número de comprobante</label>
-                <input id="paymentReference" name="comprobante" type="text" required maxlength="60" autocomplete="off" placeholder="Ej: 123456789" class="w-full rounded-2xl border border-white/10 bg-[#121212]/80 px-4 py-3 text-white outline-none transition focus:border-white/40 focus:ring-2 focus:ring-white/20" />
-              </div>
-
-              <button id="submitButton" type="submit" class="w-full rounded-2xl bg-gradient-to-r from-[#404040] to-black px-4 py-3.5 text-base font-bold text-white shadow-glow transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70">
-                Ya hice el SINPE &middot; Generar mi entrada
-              </button>
-            </form>
-            </div>
-
-            <div id="resultado" class="mt-6 hidden rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-sm text-emerald-100" role="status"></div>
           </div>
         </div>
       </section>
 
-      <section id="faq" class="mx-auto max-w-5xl px-4 pb-20 sm:px-6 lg:px-8">
-        <div class="rounded-[28px] border border-white/10 bg-[#121212]/80 p-6 sm:p-8">
-          <p class="text-sm uppercase tracking-[0.25em] text-slate-400">FAQ</p>
-          <div class="mt-6 grid gap-4 md:grid-cols-3">
-            <article class="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <h4 class="text-lg font-bold text-white">¿Hace falta registrarse?</h4>
-              <p class="mt-2 text-sm text-slate-300">No. La compra es directa y sin login previo.</p>
-            </article>
-            <article class="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <h4 class="text-lg font-bold text-white">¿Qué recibo?</h4>
-              <p class="mt-2 text-sm text-slate-300">Un ticket digital con QR único y validación instantánea.</p>
-            </article>
-            <article class="rounded-2xl border border-white/10 bg-white/5 p-5">
-              <h4 class="text-lg font-bold text-white">¿Y el acceso staff?</h4>
-              <p class="mt-2 text-sm text-slate-300">El personal debe usar el login exclusivo de escáner.</p>
-            </article>
+      <section class="events" id="events">
+        <div class="events-head">
+          <p class="label">Eventos</p>
+          <h2>Elegí tu próxima experiencia</h2>
+        </div>
+        <div class="events-grid" id="eventCards"></div>
+        <div class="events-empty" id="eventsEmpty">Cargando eventos…</div>
+      </section>
+
+      <section class="faq" id="faq">
+        <div class="faq-inner">
+          <p class="label">Preguntas frecuentes</p>
+          <div class="faq-grid">
+            <div class="faq-item">
+              <h4>¿Cómo pago mi entrada?</h4>
+              <p>Por SINPE Móvil. Hacés la transferencia al número que aparece al comprar y mandás el número de comprobante. El equipo lo verifica antes de activar tu QR.</p>
+            </div>
+            <div class="faq-item">
+              <h4>¿Necesito cuenta?</h4>
+              <p>Sí, iniciás sesión con tu cuenta de Google. Así guardamos tus entradas y evitamos QR duplicados.</p>
+            </div>
+            <div class="faq-item">
+              <h4>¿Puedo reusar el QR?</h4>
+              <p>No. Cada QR se inhabilita apenas se escanea una vez en la entrada del evento.</p>
+            </div>
           </div>
         </div>
       </section>
 
-      <footer class="mx-auto max-w-7xl border-t border-white/10 px-4 py-8 text-center text-sm text-slate-400 sm:px-6 lg:px-8">
-        <a href="/terminos.html" class="hover:text-white">Términos y condiciones</a>
-        <span class="mx-2">·</span>
-        <a href="/privacidad.html" class="hover:text-white">Privacidad</a>
+      <footer class="footer">
+        <a href="/terminos.html">Términos y condiciones</a>·<a href="/privacidad.html">Privacidad</a>
       </footer>
-    </main>
+
+      <div class="modal-overlay" id="modalOverlay" hidden>
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="stepLabel">
+          <div class="modal-head">
+            <div class="steps">
+              <div class="step-dot" data-dot="1"></div>
+              <div class="step-dot" data-dot="2"></div>
+              <div class="step-dot" data-dot="3"></div>
+              <span class="step-label" id="stepLabel">Acceso</span>
+            </div>
+            <button type="button" class="modal-close" id="modalClose" aria-label="Cerrar">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
+          </div>
+
+          <div class="modal-body">
+            <div class="event-mini">
+              <div class="event-mini-badge">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              </div>
+              <div>
+                <b id="miniNombre"></b>
+                <span id="miniMeta"></span>
+              </div>
+            </div>
+
+            <div id="paso1" hidden>
+              <h3>Iniciá sesión</h3>
+              <p class="modal-copy">Usamos tu cuenta de Google para guardar tu entrada y evitar QR duplicados. No compartimos tus datos con nadie más.</p>
+              <button type="button" class="google-btn" id="googleLoginButton">
+                <span class="g-mark">G</span>
+                Continuar con Google
+              </button>
+              <div class="aviso" id="authAviso" hidden></div>
+            </div>
+
+            <form id="paso2" hidden>
+              <h3>Datos y pago</h3>
+              <div class="field">
+                <label for="fullName">Nombre completo</label>
+                <input id="fullName" name="nombre" type="text" required autocomplete="name" placeholder="Tu nombre y apellidos" />
+              </div>
+              <div class="field">
+                <label for="email">Correo</label>
+                <input id="email" name="correo" type="email" required readonly autocomplete="email" />
+              </div>
+              <div class="field">
+                <label for="phone">Teléfono</label>
+                <input id="phone" name="telefono" type="tel" required autocomplete="tel" placeholder="+506 8888-0000" />
+              </div>
+
+              <div class="field">
+                <label>Tipo de entrada</label>
+                <div class="pill-row">
+                  <button type="button" class="pill on" id="tipoEntradaPill" disabled></button>
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Pago por SINPE Móvil</label>
+                <div class="sinpe">
+                  <p class="sinpe-label">Transferí a este número</p>
+                  <p class="sinpe-numero" id="sinpeNumero">—</p>
+                  <p class="nota">Hacé el SINPE por el monto exacto y escribí abajo el número de comprobante que te devuelve tu banco. Tu entrada queda reservada de inmediato; el QR se activa cuando confirmemos el pago.</p>
+                </div>
+              </div>
+
+              <div class="field">
+                <label for="paymentReference">Número de comprobante</label>
+                <input id="paymentReference" name="comprobante" type="text" required maxlength="60" autocomplete="off" placeholder="Ej: 123456789" />
+              </div>
+
+              <div class="summary">
+                <span style="font-size:13px;color:var(--text-dim);">Total</span>
+                <b id="summaryTotal"></b>
+              </div>
+
+              <div class="aviso" id="formAviso" hidden></div>
+
+              <button type="submit" class="modal-cta" id="submitButton">Confirmar y generar entrada</button>
+            </form>
+
+            <div id="paso3" hidden>
+              <div class="success">
+                <div class="success-icon">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <h3>Solicitud recibida</h3>
+                <p class="modal-copy" id="exitoCopy"></p>
+                <span class="pending-badge">● Pendiente de confirmación</span>
+
+                <div class="ticket-preview">
+                  <div class="ticket-preview-row"><span>Evento</span><b id="okEvento"></b></div>
+                  <div class="ticket-preview-row"><span>Titular</span><b id="okTitular"></b></div>
+                  <div class="ticket-preview-row"><span>Entrada</span><b id="okTipo"></b></div>
+                  <div class="ticket-preview-row"><span>Total</span><b id="okTotal"></b></div>
+                  <div class="ticket-preview-row"><span>Comprobante</span><b id="okRef"></b></div>
+                </div>
+              </div>
+              <a class="modal-cta" id="verTicket" href="#">Ver mi entrada</a>
+              <button type="button" class="modal-alt" id="cerrarExito">Listo</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script>
-      const authGate = document.querySelector('#authGate');
-      const authStatus = document.querySelector('#authStatus');
-      const googleLoginButton = document.querySelector('#googleLoginButton');
-      const checkoutFormWrap = document.querySelector('#checkoutFormWrap');
+      const $ = (sel) => document.querySelector(sel);
 
-      let supabaseClient = null;
-      let currentSession = null;
-
-      // El numero sale del servidor (PAYMENT_PHONE), no del HTML, para poder
-      // cambiarlo sin desplegar. Si falta, decirlo es mejor que ensenar un
-      // hueco: sin numero nadie puede pagar.
-      function pintarSinpe(numero) {
-        const destino = document.querySelector('#sinpeNumero');
-        if (!destino) return;
-        if (numero) {
-          destino.textContent = numero;
-          return;
-        }
-        destino.textContent = 'No disponible ahora mismo';
-        destino.classList.remove('text-2xl', 'text-white');
-        destino.classList.add('text-base', 'text-amber-200');
+      // Los eventos salen de nuestra propia base, pero el nombre y el lugar los
+      // escribe un admin: se escapan igual antes de entrar en innerHTML.
+      function esc(valor) {
+        return String(valor == null ? '' : valor)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       }
-
-      async function initAuth() {
-        try {
-          const response = await fetch('/api/config');
-          const config = await response.json();
-          pintarSinpe(config.paymentPhone);
-          if (!config.supabaseUrl || !config.supabaseAnonKey) {
-            authStatus.textContent = 'La compra no está disponible todavía.';
-            googleLoginButton.classList.add('hidden');
-            return;
-          }
-
-          supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
-
-          const { data: { session } } = await supabaseClient.auth.getSession();
-          handleSession(session);
-
-          supabaseClient.auth.onAuthStateChange((_event, session) => {
-            handleSession(session);
-          });
-
-          googleLoginButton.addEventListener('click', async () => {
-            await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
-          });
-        } catch (error) {
-          console.error('No se pudo inicializar el login:', error);
-        }
-      }
-
-      function handleSession(session) {
-        currentSession = session;
-        if (session) {
-          authStatus.textContent = `Sesión iniciada como ${session.user.email}.`;
-          googleLoginButton.classList.add('hidden');
-          checkoutFormWrap.classList.remove('hidden');
-        } else {
-          authStatus.textContent = 'Inicia sesión con Google para comprar tu entrada.';
-          googleLoginButton.classList.remove('hidden');
-          checkoutFormWrap.classList.add('hidden');
-        }
-      }
-
-      const eventCards = document.querySelector('#eventCards');
-      const selectedEventCard = document.querySelector('#selectedEventCard');
-      const summaryType = document.querySelector('#summaryType');
-      const summaryPrice = document.querySelector('#summaryPrice');
-      const summaryTotal = document.querySelector('#summaryTotal');
-      const resultado = document.querySelector('#resultado');
-      const form = document.querySelector('#ticketForm');
-      const submitButton = document.querySelector('#submitButton');
-      const paymentReferenceInput = document.querySelector('#paymentReference');
-      const entradasCount = document.querySelector('#entradasCount');
-
-      let selectedEvent = null;
 
       function formatCRC(value) {
-        const amount = Number(value || 0);
         return new Intl.NumberFormat('es-CR', {
-          style: 'currency',
-          currency: 'CRC',
-          minimumFractionDigits: 0,
-          maximumFractionDigits: 0
-        }).format(amount);
+          style: 'currency', currency: 'CRC',
+          minimumFractionDigits: 0, maximumFractionDigits: 0
+        }).format(Number(value || 0));
       }
 
-      // evento.fecha llega como timestamptz de Postgres ("2026-10-31T21:00:00+00:00").
-      // Se formatea solo al pintar: la API sigue devolviendo la fecha cruda.
+      // evento.fecha llega como timestamptz de Postgres. Se formatea al pintar:
+      // la API sigue devolviendo la fecha cruda.
       function formatFecha(value) {
         if (!value) return 'Fecha por confirmar';
         const date = new Date(value);
         if (Number.isNaN(date.getTime())) return String(value);
-        return new Intl.DateTimeFormat('es-CR', {
-          dateStyle: 'long',
-          timeStyle: 'short'
-        }).format(date);
+        return new Intl.DateTimeFormat('es-CR', { dateStyle: 'long', timeStyle: 'short' }).format(date);
       }
 
-      function renderSelectedEvent(event) {
-        selectedEvent = event;
-        selectedEventCard.innerHTML = `
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="text-xs uppercase tracking-[0.2em] text-neutral-300">${event.categoria}</p>
-              <h4 class="mt-2 text-xl font-black text-white">${event.nombre}</h4>
-              <p class="mt-1 text-sm text-slate-300">${formatFecha(event.fecha)}</p>
-              <p class="mt-2 text-sm text-slate-300">${event.lugar}</p>
-            </div>
-            <span class="rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-bold text-emerald-300">${formatCRC(event.precio)}</span>
-          </div>
-        `;
-
-        summaryType.textContent = event.categoria;
-        summaryPrice.textContent = formatCRC(event.precio);
-        summaryTotal.textContent = formatCRC(event.precio);
+      function formatFechaCorta(value) {
+        if (!value) return 'Por confirmar';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return new Intl.DateTimeFormat('es-CR', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
       }
 
-      function renderEvents(eventos) {
-        eventCards.innerHTML = eventos.map((evento) => `
-          <article class="group rounded-[28px] border border-white/10 bg-[#121212]/90 p-4 transition hover:-translate-y-1 hover:border-white/30 hover:shadow-2xl hover:shadow-black/40">
-            <div class="rounded-[22px] bg-gradient-to-br from-white/10 to-white/5 p-4 ring-1 ring-white/10">
-              <div class="flex items-center justify-between">
-                <span class="rounded-full bg-brand-500/15 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-100">${evento.categoria}</span>
-                <span class="text-lg font-black text-white">${formatCRC(evento.precio)}</span>
+      const ICONO_FECHA = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+      const ICONO_LUGAR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>';
+
+      let supabaseClient = null;
+      let currentSession = null;
+      let selectedEvent = null;
+      let paso = 1;
+
+      /* ---------------------------------------------------------- eventos */
+
+      function renderEventos(lista) {
+        const grid = $('#eventCards');
+        const vacio = $('#eventsEmpty');
+
+        if (!lista.length) {
+          grid.innerHTML = '';
+          vacio.textContent = 'Todavía no hay eventos publicados. Volvé pronto.';
+          vacio.hidden = false;
+          return;
+        }
+        vacio.hidden = true;
+
+        grid.innerHTML = lista.map((ev) => `
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-top">
+                <span class="card-tag">${esc(ev.categoria)}</span>
+                <span class="card-price">${formatCRC(ev.precio)}</span>
               </div>
-              <h3 class="mt-5 text-2xl font-black text-white">${evento.nombre}</h3>
-              <p class="mt-2 text-sm text-slate-300">${formatFecha(evento.fecha)}</p>
-              <p class="mt-3 text-sm text-slate-400">${evento.lugar}</p>
-              <p class="mt-4 text-sm text-slate-300">${evento.descripcion}</p>
+              <h3>${esc(ev.nombre)}</h3>
+              <div class="card-meta">
+                <div>${ICONO_FECHA}<span>${esc(formatFecha(ev.fecha))}</span></div>
+                <div>${ICONO_LUGAR}<span>${esc(ev.lugar)}</span></div>
+              </div>
+              <p>${esc(ev.descripcion || '')}</p>
+              <button type="button" class="card-btn" data-evento="${esc(ev.id)}">
+                Seleccionar entrada
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
             </div>
-            <button type="button" data-event-id="${evento.id}" class="selectEvent mt-4 w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-bold text-white transition hover:border-white/40 hover:bg-white/10">
-              Seleccionar entrada
-            </button>
-          </article>
+          </div>
         `).join('');
 
-        document.querySelectorAll('.selectEvent').forEach((button) => {
-          button.addEventListener('click', () => {
-            const evento = eventos.find((item) => item.id === button.dataset.eventId);
-            if (evento) renderSelectedEvent(evento);
-            document.querySelector('#checkout').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        grid.querySelectorAll('.card-btn').forEach((boton) => {
+          boton.addEventListener('click', () => {
+            const ev = lista.find((item) => item.id === boton.dataset.evento);
+            if (ev) abrirModal(ev);
           });
         });
 
-        if (eventos.length) {
-          renderSelectedEvent(eventos[0]);
-        }
-      }
-
-      function showResult(message, success) {
-        resultado.textContent = message;
-        resultado.className = `mt-6 rounded-2xl p-4 text-sm ${success ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-100' : 'border border-red-500/30 bg-red-500/10 text-red-100'}`;
-        resultado.classList.remove('hidden');
+        const destacado = lista[0];
+        $('#heroNombre').textContent = destacado.nombre;
+        $('#heroFecha').textContent = formatFechaCorta(destacado.fecha);
+        $('#heroLugar').textContent = destacado.lugar;
+        $('#heroCategoria').textContent = destacado.categoria;
+        $('#heroPrecio').textContent = formatCRC(destacado.precio);
+        $('#heroCard').hidden = false;
       }
 
       async function cargarEventos() {
         try {
-          const response = await fetch('/api/eventos');
-          const data = await response.json();
-          if (response.ok && data.eventos) {
-            renderEvents(data.eventos);
-          }
+          const res = await fetch('/api/eventos');
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.mensaje || 'No se pudieron cargar los eventos.');
+          const lista = data.eventos || [];
+          $('#statEventos').textContent = String(lista.length);
+          renderEventos(lista);
         } catch (error) {
-          console.error('Error cargando eventos:', error);
+          $('#eventCards').innerHTML = '';
+          $('#eventsEmpty').textContent = 'No pudimos cargar los eventos. Recargá la página en un momento.';
+          $('#eventsEmpty').hidden = false;
         }
       }
 
       async function cargarEstadisticas() {
         try {
-          const response = await fetch('/api/estadisticas-publicas');
-          const data = await response.json();
-          if (response.ok && data.ok) {
-            entradasCount.textContent = new Intl.NumberFormat('es-CR').format(Number(data.entradas || 0));
+          const res = await fetch('/api/estadisticas-publicas');
+          const data = await res.json();
+          if (res.ok && data.ok) {
+            $('#statEntradas').textContent = new Intl.NumberFormat('es-CR').format(Number(data.entradas || 0));
           }
         } catch (error) {
-          console.error('Error cargando estadísticas:', error);
+          $('#statEntradas').textContent = '—';
         }
       }
 
-      form.addEventListener('submit', async (event) => {
-        event.preventDefault();
+      /* ------------------------------------------------------------ modal */
 
-        if (!currentSession) {
-          showResult('Inicia sesión con Google antes de comprar.', false);
-          return;
+      function pintarPaso() {
+        $('#paso1').hidden = paso !== 1;
+        $('#paso2').hidden = paso !== 2;
+        $('#paso3').hidden = paso !== 3;
+        $('#stepLabel').textContent = { 1: 'Acceso', 2: 'Datos y pago', 3: 'Confirmación' }[paso] || '';
+        document.querySelectorAll('.step-dot').forEach((punto) => {
+          punto.classList.toggle('on', Number(punto.dataset.dot) <= paso);
+        });
+      }
+
+      function rellenarDesdeSesion() {
+        if (!currentSession) return;
+        const usuario = currentSession.user || {};
+        const meta = usuario.user_metadata || {};
+        if (!$('#fullName').value) $('#fullName').value = meta.full_name || meta.name || '';
+        $('#email').value = usuario.email || '';
+      }
+
+      function abrirModal(evento) {
+        selectedEvent = evento;
+        $('#miniNombre').textContent = evento.nombre;
+        $('#miniMeta').textContent = `${formatFechaCorta(evento.fecha)} · ${evento.lugar}`;
+        // El tipo de entrada es la categoría del evento: la base guarda un solo
+        // precio por evento, así que aquí no hay nada que elegir.
+        $('#tipoEntradaPill').innerHTML = `${esc(evento.categoria)}<span class="pill-sub">${formatCRC(evento.precio)}</span>`;
+        $('#summaryTotal').textContent = formatCRC(evento.precio);
+        $('#formAviso').hidden = true;
+
+        paso = currentSession ? 2 : 1;
+        if (currentSession) rellenarDesdeSesion();
+        pintarPaso();
+        $('#modalOverlay').hidden = false;
+        document.body.style.overflow = 'hidden';
+      }
+
+      function cerrarModal() {
+        $('#modalOverlay').hidden = true;
+        document.body.style.overflow = '';
+      }
+
+      $('#modalClose').addEventListener('click', cerrarModal);
+      $('#cerrarExito').addEventListener('click', cerrarModal);
+      $('#modalOverlay').addEventListener('click', (e) => {
+        if (e.target === $('#modalOverlay')) cerrarModal();
+      });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !$('#modalOverlay').hidden) cerrarModal();
+      });
+      $('#verEventos').addEventListener('click', () => {
+        $('#events').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+
+      /* ------------------------------------------------------------- auth */
+
+      function manejarSesion(session) {
+        currentSession = session;
+        // Volver de Google reabre la página: si el modal está en el paso 1 y ya
+        // hay sesión, avanza solo en vez de pedir login otra vez.
+        if (session && !$('#modalOverlay').hidden && paso === 1) {
+          rellenarDesdeSesion();
+          paso = 2;
+          pintarPaso();
         }
+      }
 
-        if (!selectedEvent) {
-          showResult('Primero elige un evento.', false);
-          return;
-        }
-
-        const comprobante = paymentReferenceInput.value.trim();
-
-        if (!comprobante) {
-          showResult('Escribe el número de comprobante del SINPE para continuar.', false);
-          paymentReferenceInput.focus();
-          return;
-        }
-
-        const payload = {
-          nombre: document.querySelector('#fullName').value.trim(),
-          correo: document.querySelector('#email').value.trim(),
-          telefono: document.querySelector('#phone').value.trim(),
-          evento: selectedEvent.nombre,
-          tipoEntrada: selectedEvent.categoria,
-          eventoId: selectedEvent.id,
-          comprobante
-        };
-
-        submitButton.disabled = true;
-        submitButton.textContent = 'Enviando solicitud...';
-
+      async function initAuth() {
         try {
-          const response = await fetch('/api/crear-ticket', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${currentSession?.access_token || ''}`
-            },
-            body: JSON.stringify(payload)
-          });
+          const res = await fetch('/api/config');
+          const config = await res.json();
 
-          const data = await response.json();
-          if (!response.ok) {
-            showResult(data.mensaje || 'No se pudo crear la entrada.', false);
+          // El número sale del servidor (PAYMENT_PHONE), no del HTML, para poder
+          // cambiarlo sin desplegar. Si falta, decirlo es mejor que un hueco.
+          const destino = $('#sinpeNumero');
+          if (config.paymentPhone) {
+            destino.textContent = config.paymentPhone;
+          } else {
+            destino.textContent = 'No disponible ahora mismo';
+            destino.classList.add('falta');
+          }
+
+          if (!config.supabaseUrl || !config.supabaseAnonKey) {
+            $('#authAviso').textContent = 'La compra no está disponible todavía. Volvé en un rato.';
+            $('#authAviso').hidden = false;
+            $('#googleLoginButton').disabled = true;
             return;
           }
 
-          // El servidor ya redacta el mensaje correcto: la solicitud se recibio
-          // y el QR sigue inactivo. Antes aqui decia "Pago confirmado".
-          showResult(data.mensaje || 'Solicitud recibida. Tu QR se activará cuando confirmemos el pago.', true);
-          window.setTimeout(() => {
-            window.location.href = `/ticket.html?ticketId=${data.ticket.id}`;
-          }, 1200);
+          supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          manejarSesion(session);
+          supabaseClient.auth.onAuthStateChange((_tipo, sesion) => manejarSesion(sesion));
+
+          $('#googleLoginButton').addEventListener('click', async () => {
+            await supabaseClient.auth.signInWithOAuth({ provider: 'google' });
+          });
         } catch (error) {
-          showResult('No se pudo conectar con el servidor. Inténtalo de nuevo.', false);
+          $('#authAviso').textContent = 'No pudimos preparar el acceso. Recargá la página.';
+          $('#authAviso').hidden = false;
+        }
+      }
+
+      /* ----------------------------------------------------------- compra */
+
+      function avisoForm(mensaje) {
+        const caja = $('#formAviso');
+        caja.textContent = mensaje;
+        caja.hidden = false;
+      }
+
+      $('#paso2').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!currentSession) { paso = 1; pintarPaso(); return; }
+        if (!selectedEvent) { cerrarModal(); return; }
+
+        const nombre = $('#fullName').value.trim();
+        const telefono = $('#phone').value.trim();
+        const comprobante = $('#paymentReference').value.trim();
+
+        if (!nombre) { avisoForm('Escribí tu nombre completo.'); $('#fullName').focus(); return; }
+        if (!telefono) { avisoForm('Escribí tu teléfono.'); $('#phone').focus(); return; }
+        if (!comprobante) { avisoForm('Escribí el número de comprobante del SINPE.'); $('#paymentReference').focus(); return; }
+
+        $('#formAviso').hidden = true;
+        const boton = $('#submitButton');
+        boton.disabled = true;
+        boton.textContent = 'Enviando solicitud…';
+
+        try {
+          const res = await fetch('/api/crear-ticket', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${currentSession.access_token || ''}`
+            },
+            body: JSON.stringify({
+              nombre,
+              correo: $('#email').value.trim(),
+              telefono,
+              eventoId: selectedEvent.id,
+              tipoEntrada: selectedEvent.categoria,
+              comprobante
+            })
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) {
+            avisoForm(data.mensaje || 'No se pudo crear la entrada.');
+            return;
+          }
+
+          // El mensaje lo redacta el servidor: la solicitud se recibió y el QR
+          // sigue inactivo hasta que un admin confirme el pago.
+          $('#exitoCopy').textContent = data.mensaje || 'Recibimos tu comprobante. Tu QR se activa cuando confirmemos el pago — te avisamos por correo.';
+          $('#okEvento').textContent = selectedEvent.nombre;
+          $('#okTitular').textContent = nombre;
+          $('#okTipo').textContent = selectedEvent.categoria;
+          $('#okTotal').textContent = formatCRC(selectedEvent.precio);
+          $('#okRef').textContent = comprobante;
+          $('#verTicket').href = `/ticket.html?ticketId=${encodeURIComponent(data.ticket.id)}`;
+
+          $('#paymentReference').value = '';
+          paso = 3;
+          pintarPaso();
+        } catch (error) {
+          avisoForm('No pudimos conectar con el servidor. Intentalo de nuevo.');
         } finally {
-          submitButton.disabled = false;
-          submitButton.textContent = 'Ya hice el SINPE · Generar mi entrada';
+          boton.disabled = false;
+          boton.textContent = 'Confirmar y generar entrada';
         }
       });
 
+      pintarPaso();
       cargarEventos();
       cargarEstadisticas();
       initAuth();

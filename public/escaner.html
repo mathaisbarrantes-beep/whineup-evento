@@ -3,19 +3,31 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Redirigiendo al escáner</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/theme.css" />
+    <title>Redirigiendo | WhineUp</title>
+    <meta http-equiv="refresh" content="0; url=/scanner-dashboard" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500&display=swap" />
+    <style>
+      body{
+        margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+        background:oklch(9% 0 0);color:oklch(97% 0 0);text-align:center;padding:24px;
+        font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+      }
+      .eyebrow{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:oklch(52% 0 0);margin:0;}
+      h1{font-family:'Anton','Arial Narrow',sans-serif;font-weight:400;text-transform:uppercase;font-size:30px;margin:14px 0 0;}
+      p.nota{color:oklch(74% 0 0);font-size:14px;margin:10px 0 0;}
+      a{color:oklch(97% 0 0);font-weight:600;}
+    </style>
   </head>
-  <body class="flex min-h-screen items-center justify-center bg-black text-white">
-    <div class="text-center">
-      <p class="text-sm uppercase tracking-[0.25em] text-violet-300">WhineUp</p>
-      <h1 class="mt-4 text-3xl font-black">Redirigiendo al panel de validación...</h1>
-      <p class="mt-2 text-slate-400">Si no se redirige, accede directamente a <a href="/login" class="font-semibold text-violet-300">/login</a>.</p>
+  <body>
+    <div>
+      <p class="eyebrow">WhineUp CR</p>
+      <h1>Abriendo el panel…</h1>
+      <p class="nota">Si no pasa nada, entrá directo a <a href="/login">/login</a>.</p>
     </div>
-
     <script>
-      window.location.href = '/scanner-dashboard';
+      window.location.replace('/scanner-dashboard');
     </script>
   </body>
 </html>

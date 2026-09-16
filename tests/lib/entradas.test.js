@@ -98,10 +98,12 @@ test('mapEntradaRow maps snake_case columns and the joined event name to the exi
     telefono: '8888-0000', tipo_entrada: 'General', precio: 45000, metodo_pago: 'sinpe',
     referencia_pago: 'REF123', pagado: true, estado: 'PENDIENTE', pago_confirmado_por: 'staff1',
     pago_confirmado_en: '2026-01-01T00:00:00Z', ingresado_en: null, generado_por: null,
-    creado_en: '2026-01-01T00:00:00Z', eventos: { nombre: 'HALLOWEEN PARTY' }
+    creado_en: '2026-01-01T00:00:00Z',
+    eventos: { nombre: 'HALLOWEEN PARTY', fecha: '2026-10-31T21:00:00Z', lugar: 'WhineUp CR' }
   };
   assert.deepEqual(mapEntradaRow(row), {
-    id: 't1', eventoId: 'e1', evento: 'HALLOWEEN PARTY', usuarioId: 'u1', nombre: 'Ana',
+    id: 't1', eventoId: 'e1', evento: 'HALLOWEEN PARTY',
+    eventoFecha: '2026-10-31T21:00:00Z', eventoLugar: 'WhineUp CR', usuarioId: 'u1', nombre: 'Ana',
     correo: 'ana@x.com', telefono: '8888-0000', tipoEntrada: 'General', precio: 45000,
     metodoPago: 'sinpe', referenciaPago: 'REF123', pagado: true, estado: 'PENDIENTE',
     pagoConfirmadoPor: 'staff1', pagoConfirmadoEn: '2026-01-01T00:00:00Z', ingresadoEn: null,

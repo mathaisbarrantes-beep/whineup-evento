@@ -3,111 +3,227 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ticket digital | WhineUp</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="/theme.css" />
+    <title>Tu entrada | WhineUp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" />
+    <style>
+      :root{
+        --bg:oklch(9% 0 0);
+        --surface-1:oklch(14% 0 0);
+        --border:oklch(100% 0 0 / 12%);
+        --border-strong:oklch(100% 0 0 / 30%);
+        --text:oklch(97% 0 0);
+        --text-dim:oklch(74% 0 0);
+        --text-faint:oklch(52% 0 0);
+      }
+      *{box-sizing:border-box;}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+      h1,h2{font-family:'Anton','Arial Narrow',sans-serif;font-weight:400;text-transform:uppercase;margin:0;}
+      button{font-family:inherit;cursor:pointer;}
+      a{text-decoration:none;color:inherit;}
+      [hidden]{display:none !important;}
+      :focus-visible{outline:2px solid #fff;outline-offset:2px;}
+
+      .screen{min-height:100vh;max-width:430px;margin:0 auto;padding:20px;display:flex;flex-direction:column;}
+      .top{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+      .brand{display:flex;align-items:center;gap:10px;}
+      .brand img{width:30px;height:30px;border-radius:999px;object-fit:cover;}
+      .brand span{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-faint);}
+      .back{width:36px;height:36px;border-radius:999px;border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;background:transparent;color:var(--text);flex-shrink:0;}
+      .back:hover{border-color:#fff;}
+
+      .ticket{margin-top:22px;border:1px solid var(--border-strong);border-radius:26px;background:var(--surface-1);overflow:hidden;flex-grow:1;}
+      .ticket-top{padding:26px 24px 20px;}
+      .status-badge{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 14px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;}
+      .status-active{background:#fff;color:#0a0a0a;}
+      .status-pending{border:1px dashed var(--border-strong);color:var(--text-dim);}
+      .ticket-top h1{font-size:30px;margin-top:16px;text-wrap:balance;}
+      .ticket-meta{display:flex;flex-direction:column;gap:8px;margin-top:14px;font-size:13px;color:var(--text-dim);}
+      .ticket-meta div{display:flex;align-items:flex-start;gap:8px;}
+      .ticket-meta svg{flex-shrink:0;margin-top:2px;}
+
+      .perforation{position:relative;height:1px;background:var(--border);margin:0 24px;}
+      .perforation::before,.perforation::after{content:'';position:absolute;top:-11px;width:22px;height:22px;border-radius:999px;background:var(--bg);}
+      .perforation::before{left:-34px;}
+      .perforation::after{right:-34px;}
+
+      .qr-wrap{padding:26px 24px 10px;display:flex;flex-direction:column;align-items:center;}
+      .qr-frame{width:210px;height:210px;background:#fff;border-radius:14px;padding:12px;display:flex;align-items:center;justify-content:center;}
+      .qr-frame img{width:100%;height:100%;object-fit:contain;display:block;}
+      .qr-hint{font-size:11px;color:var(--text-faint);margin:14px 0 0;text-align:center;line-height:1.5;}
+      .qr-blocked{width:210px;border-radius:14px;border:1px dashed var(--border-strong);padding:26px 18px;text-align:center;font-size:12px;line-height:1.5;color:var(--text-dim);}
+
+      .details{padding:16px 24px 26px;}
+      .detail-row{display:flex;justify-content:space-between;gap:14px;font-size:13px;padding:10px 0;border-bottom:1px solid var(--border);color:var(--text-dim);}
+      .detail-row:last-of-type{border-bottom:none;}
+      .detail-row b{color:var(--text);font-weight:600;text-align:right;word-break:break-word;}
+      .ticket-id{font-size:10px;color:var(--text-faint);text-align:center;margin:8px 0 0;word-break:break-all;}
+
+      .actions{display:flex;gap:10px;margin-top:18px;}
+      .action{flex:1;border:1px solid var(--border-strong);border-radius:14px;padding:13px;font-size:13px;font-weight:600;background:transparent;color:var(--text);display:flex;align-items:center;justify-content:center;gap:8px;}
+      .action:hover{border-color:#fff;}
+      .action-solid{background:#fff;color:#0a0a0a;border-color:#fff;}
+      .action-solid:hover{background:oklch(90% 0 0);color:#0a0a0a;}
+
+      .vacio{margin-top:60px;text-align:center;color:var(--text-dim);font-size:15px;line-height:1.6;}
+      .vacio h2{font-size:26px;color:var(--text);margin-bottom:10px;}
+      @media (prefers-reduced-motion:reduce){*{transition:none !important;}}
+    </style>
   </head>
-  <body class="min-h-screen bg-black px-4 py-10 text-white">
-    <main class="mx-auto max-w-4xl">
-      <div class="mb-8 flex items-center justify-between gap-4">
-        <div>
-          <p class="text-xs uppercase tracking-[0.28em] text-violet-300">WhineUp</p>
-          <h1 class="mt-2 text-3xl font-black">Tu entrada digital</h1>
+  <body>
+    <div class="screen">
+      <div class="top">
+        <div class="brand">
+          <img src="/logo.png" alt="WhineUp CR" />
+          <span>WhineUp CR</span>
         </div>
-        <a href="/" class="rounded-full border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-100 hover:border-violet-400 hover:text-violet-100">Volver a eventos</a>
+        <a href="/" class="back" aria-label="Volver a eventos">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </a>
       </div>
 
-      <section class="grid gap-8 overflow-hidden rounded-[32px] border border-white/10 bg-white/5 p-5 shadow-2xl shadow-violet-500/10 backdrop-blur-xl md:grid-cols-[0.9fr_1.1fr] md:p-8">
-        <div class="rounded-[28px] border border-violet-400/25 bg-slate-900/80 p-5">
-          <p class="text-xs uppercase tracking-[0.24em] text-violet-300">Código QR</p>
-          <div class="mt-5 flex justify-center rounded-2xl bg-white p-4">
-            <img id="qrImage" alt="Código QR del ticket" class="h-56 w-56 object-contain" />
+      <div class="ticket" id="ticket" hidden>
+        <div class="ticket-top">
+          <span class="status-badge status-pending" id="estado">● Cargando</span>
+          <h1 id="eventTitle">—</h1>
+          <div class="ticket-meta">
+            <div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+              <span id="eventDate">—</span>
+            </div>
+            <div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>
+              <span id="eventPlace">—</span>
+            </div>
           </div>
-          <p id="ticketId" class="mt-5 break-all text-center text-xs text-slate-400"></p>
         </div>
 
-        <div class="space-y-5">
-          <div class="rounded-[24px] bg-gradient-to-br from-violet-500 via-brand-500 to-blue-500 p-5">
-            <p id="eventName" class="text-sm uppercase tracking-[0.2em] text-violet-100">Evento</p>
-            <h2 id="eventTitle" class="mt-3 text-3xl font-black text-white">Cargando...</h2>
+        <div class="perforation"></div>
+
+        <div class="qr-wrap">
+          <div class="qr-frame" id="qrFrame" hidden>
+            <img id="qrImage" alt="Código QR de tu entrada" />
           </div>
-
-          <div class="grid gap-4 sm:grid-cols-2">
-            <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Titular</p>
-              <p id="buyerName" class="mt-2 text-lg font-bold text-white">-</p>
-            </div>
-
-            <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Tipo</p>
-              <p id="ticketType" class="mt-2 text-lg font-bold text-white">-</p>
-            </div>
-
-            <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Fecha</p>
-              <p id="eventDate" class="mt-2 text-lg font-bold text-white">-</p>
-            </div>
-
-            <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4">
-              <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Precio</p>
-              <p id="ticketPrice" class="mt-2 text-lg font-bold text-white">-</p>
-            </div>
+          <div class="qr-blocked" id="qrBlocked" hidden>
+            El código QR se activa cuando confirmemos tu pago. Te avisamos por correo en cuanto esté listo.
           </div>
-
-          <div class="rounded-2xl border border-white/10 bg-slate-900/70 p-4 text-sm text-slate-300">
-            <p class="font-semibold text-white">Instrucciones</p>
-            <ul class="mt-3 space-y-2">
-              <li>• Presenta este QR al entrar al evento.</li>
-              <li>• El personal del acceso escaneará tu código para validarlo.</li>
-              <li>• Cada ticket tiene un código único e intransferible.</li>
-            </ul>
-          </div>
+          <p class="qr-hint" id="qrHint">Mostrá este código en la entrada. Se inhabilita apenas se escanea.</p>
         </div>
-      </section>
-    </main>
+
+        <div class="details">
+          <div class="detail-row"><span>Titular</span><b id="buyerName">—</b></div>
+          <div class="detail-row"><span>Tipo de entrada</span><b id="ticketType">—</b></div>
+          <div class="detail-row"><span>Total</span><b id="ticketPrice">—</b></div>
+          <div class="detail-row"><span>Emitida</span><b id="issuedAt">—</b></div>
+          <p class="ticket-id" id="ticketId"></p>
+        </div>
+      </div>
+
+      <div class="actions" id="actions" hidden>
+        <button type="button" class="action" id="compartir">Compartir</button>
+        <a class="action action-solid" id="guardar" download>Guardar QR</a>
+      </div>
+
+      <div class="vacio" id="vacio" hidden>
+        <h2 id="vacioTitulo">Entrada no disponible</h2>
+        <p id="vacioTexto">No encontramos esta entrada. Revisá el enlace del correo.</p>
+      </div>
+    </div>
 
     <script>
-      const params = new URLSearchParams(window.location.search);
-      const ticketId = params.get('ticketId');
+      const $ = (sel) => document.querySelector(sel);
+      const ticketId = new URLSearchParams(window.location.search).get('ticketId');
 
-      if (!ticketId) {
-        document.body.innerHTML = '<main class="flex min-h-screen items-center justify-center text-white"><p class="text-xl font-bold">No hay un ticket válido para mostrar.</p></main>';
-      } else {
-        document.querySelector('#ticketId').textContent = `Ticket ID: ${ticketId}`;
-        document.querySelector('#qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=320x320&data=${encodeURIComponent(ticketId)}`;
-
-        fetch(`/api/ticket/${ticketId}`)
-          .then((response) => response.json())
-          .then((data) => {
-            if (!data.ok || !data.ticket) {
-              throw new Error('Ticket no disponible');
-            }
-
-            const ticket = data.ticket;
-            document.querySelector('#eventTitle').textContent = ticket.evento || 'Evento';
-            document.querySelector('#eventName').textContent = ticket.evento || 'Evento';
-            document.querySelector('#buyerName').textContent = ticket.nombre || '-';
-            document.querySelector('#ticketType').textContent = ticket.tipoEntrada || 'General';
-            document.querySelector('#eventDate').textContent = ticket.creadoEn ? new Date(ticket.creadoEn).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Hoy';
-            const price = Number(ticket.precio || 0);
-            document.querySelector('#ticketPrice').textContent = new Intl.NumberFormat('es-CR', {
-              style: 'currency',
-              currency: 'CRC',
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 0
-            }).format(price);
-            document.querySelector('#ticketId').insertAdjacentText('afterend', ticket.pagado ? '' : ' | Pago pendiente de confirmación');
-          })
-          .catch((error) => {
-            console.error(error);
-            document.querySelector('#eventTitle').textContent = 'Ticket no disponible';
-            document.querySelector('#eventName').textContent = 'Error';
-            document.querySelector('#buyerName').textContent = 'Consulta de asistencia';
-            document.querySelector('#ticketType').textContent = 'Reintenta';
-            document.querySelector('#eventDate').textContent = '-';
-            document.querySelector('#ticketPrice').textContent = '-';
-          });
+      function formatCRC(value) {
+        return new Intl.NumberFormat('es-CR', {
+          style: 'currency', currency: 'CRC',
+          minimumFractionDigits: 0, maximumFractionDigits: 0
+        }).format(Number(value || 0));
       }
+
+      function formatFecha(value, conHora) {
+        if (!value) return 'Por confirmar';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return new Intl.DateTimeFormat('es-CR', conHora
+          ? { day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }
+          : { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+      }
+
+      function mostrarVacio(titulo, texto) {
+        $('#ticket').hidden = true;
+        $('#actions').hidden = true;
+        $('#vacioTitulo').textContent = titulo;
+        $('#vacioTexto').textContent = texto;
+        $('#vacio').hidden = false;
+      }
+
+      async function cargar() {
+        if (!ticketId) {
+          mostrarVacio('No hay ninguna entrada', 'Este enlace no trae el identificador de la entrada.');
+          return;
+        }
+
+        try {
+          const res = await fetch(`/api/ticket/${encodeURIComponent(ticketId)}`);
+          const data = await res.json();
+          if (!res.ok || !data.ok || !data.ticket) {
+            mostrarVacio('Entrada no encontrada', data.mensaje || 'Revisá el enlace que te llegó por correo.');
+            return;
+          }
+
+          const t = data.ticket;
+          $('#eventTitle').textContent = t.evento || 'Evento';
+          $('#eventDate').textContent = formatFecha(t.eventoFecha, true);
+          $('#eventPlace').textContent = t.eventoLugar || 'Lugar por confirmar';
+          $('#buyerName').textContent = t.nombre || '—';
+          $('#ticketType').textContent = t.tipoEntrada || 'General';
+          $('#ticketPrice').textContent = formatCRC(t.precio);
+          $('#issuedAt').textContent = formatFecha(t.creadoEn, false);
+          $('#ticketId').textContent = `ID · ${t.id}`;
+
+          const estado = $('#estado');
+          if (t.pagado) {
+            estado.textContent = '● Entrada activa';
+            estado.className = 'status-badge status-active';
+            // El QR sale de nuestro propio endpoint, no de un servicio ajeno:
+            // el id de la entrada no tiene por qué salir a un tercero.
+            $('#qrImage').src = `/api/ticket/${encodeURIComponent(t.id)}/qr.png`;
+            $('#qrFrame').hidden = false;
+            $('#guardar').href = `/api/ticket/${encodeURIComponent(t.id)}/qr.png`;
+            $('#guardar').setAttribute('download', `entrada-${String(t.id).slice(0, 8)}.png`);
+            $('#actions').hidden = false;
+          } else {
+            estado.textContent = '● Pendiente de confirmación';
+            estado.className = 'status-badge status-pending';
+            $('#qrBlocked').hidden = false;
+            $('#qrHint').hidden = true;
+          }
+
+          $('#ticket').hidden = false;
+        } catch (error) {
+          mostrarVacio('No pudimos cargar tu entrada', 'Revisá tu conexión y recargá la página.');
+        }
+      }
+
+      $('#compartir').addEventListener('click', async () => {
+        const boton = $('#compartir');
+        const url = window.location.href;
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: 'Mi entrada de WhineUp', url });
+            return;
+          }
+          await navigator.clipboard.writeText(url);
+          boton.textContent = 'Enlace copiado';
+          setTimeout(() => { boton.textContent = 'Compartir'; }, 1800);
+        } catch (error) {
+          // Cancelar el diálogo de compartir no es un fallo: no se avisa de nada.
+        }
+      });
+
+      cargar();
     </script>
   </body>
 </html>

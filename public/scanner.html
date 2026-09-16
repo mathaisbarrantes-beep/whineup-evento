@@ -21,6 +21,7 @@
         --border-strong:oklch(100% 0 0 / 34%);
         --ok:oklch(62% .17 150);
         --mal:oklch(58% .20 25);
+        --aviso:oklch(80% .15 80);
         --safe-top:env(safe-area-inset-top, 0px);
         --safe-bottom:env(safe-area-inset-bottom, 0px);
       }
@@ -76,6 +77,7 @@
       }
       .resultado.ok{background:var(--ok);color:#03150a;}
       .resultado.mal{background:var(--mal);color:#1a0505;}
+      .resultado.error{background:var(--aviso);color:#1a1200;}
       .resultado .icono{font-size:82px;line-height:1;font-weight:700;}
       .resultado h2{font-size:clamp(34px,11vw,54px);line-height:1;}
       .resultado .detalle{font-size:16px;font-weight:600;line-height:1.4;max-width:28ch;word-break:break-word;}
@@ -330,14 +332,23 @@
         try { if (navigator.vibrate) navigator.vibrate(patron); } catch (e) { /* da igual */ }
       }
 
-      function mostrarResultado(permitido, titulo, detalle) {
+      // "error" no es un rechazo: el ticket no llegó a revisarse (sesión,
+      // servidor, red). Pintado como "Denegado", un fallo del sistema deja
+      // afuera a gente con entrada válida y nadie se entera de que falló.
+      const RESULTADOS = {
+        ok: { icono: '✓', vibracion: 120 },
+        mal: { icono: '✕', vibracion: [90, 70, 90, 70, 90] },
+        error: { icono: '!', vibracion: [200, 100, 200] }
+      };
+
+      function mostrarResultado(tipo, titulo, detalle) {
         const caja = $('#resultado');
-        caja.className = `resultado ${permitido ? 'ok' : 'mal'}`;
-        $('#resIcono').textContent = permitido ? '✓' : '✕';
+        caja.className = `resultado ${tipo}`;
+        $('#resIcono').textContent = RESULTADOS[tipo].icono;
         $('#resTitulo').textContent = titulo;
         $('#resDetalle').textContent = detalle;
         caja.hidden = false;
-        vibrar(permitido ? 120 : [90, 70, 90, 70, 90]);
+        vibrar(RESULTADOS[tipo].vibracion);
       }
 
       function ocultarResultado() {
@@ -374,12 +385,15 @@
 
           if (data.permitido) {
             const partes = [data.nombre, data.tipoEntrada].filter(Boolean).join(' · ');
-            mostrarResultado(true, 'Adelante', partes || 'Entrada válida');
+            mostrarResultado('ok', 'Adelante', partes || 'Entrada válida');
+          } else if (data.ok) {
+            mostrarResultado('mal', 'Denegado', data.mensaje || 'Entrada no válida');
           } else {
-            mostrarResultado(false, 'Denegado', data.mensaje || 'Entrada no válida');
+            // La ruta responde ok:false cuando no pudo revisar el ticket.
+            mostrarResultado('error', 'Sin validar', data.mensaje || 'No se pudo validar. Intentá de nuevo.');
           }
         } catch (error) {
-          mostrarResultado(false, 'Sin conexión', 'No se pudo validar. Revisá la señal e intentá de nuevo.');
+          mostrarResultado('error', 'Sin conexión', 'No se pudo validar. Revisá la señal e intentá de nuevo.');
         }
 
         // Se cierra solo, pero se puede tocar para seguir antes.

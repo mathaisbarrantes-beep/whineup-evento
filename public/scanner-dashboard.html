@@ -64,6 +64,7 @@
       .result{margin-top:16px;border-radius:20px;padding:20px;text-align:center;border:1px solid var(--border-strong);}
       .result-allow{background:oklch(100% 0 0 / 8%);}
       .result-deny{background:oklch(11% 0 0);border-style:dashed;}
+      .result-error{background:transparent;border-style:dotted;}
       .result-icon{width:56px;height:56px;border-radius:999px;border:1.5px solid #fff;display:flex;align-items:center;justify-content:center;margin:0 auto;}
       .result h3{font-size:24px;margin-top:14px;}
       .result p{font-size:13px;color:var(--text-dim);margin-top:6px;}
@@ -293,6 +294,7 @@
       const ICONO_TEL = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.7A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .3 2 .7 3a2 2 0 0 1-.5 2L8 10a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2-.5c1 .4 2 .6 3 .7a2 2 0 0 1 1.7 2Z"/></svg>';
       const TIC = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg>';
       const EQUIS = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+      const ALERTA = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v8M12 18h.01"/></svg>';
 
       let supabaseClient = null;
       let currentSession = null;
@@ -493,12 +495,20 @@
 
       /* ------------------------------------------------------- escáner */
 
-      function showResult(allowed, message) {
+      // "error" no es un rechazo: el ticket no llegó a revisarse. Mostrarlo
+      // como DENEGADO hace pasar un fallo del sistema por una entrada mala.
+      const RESULTADOS = {
+        allow: { clase: 'result-allow', icono: TIC, titulo: 'PERMITIDO' },
+        deny: { clase: 'result-deny', icono: EQUIS, titulo: 'DENEGADO' },
+        error: { clase: 'result-error', icono: ALERTA, titulo: 'SIN VALIDAR' }
+      };
+
+      function showResult(tipo, message) {
         const panel = $('#resultPanel');
-        panel.className = `result ${allowed ? 'result-allow' : 'result-deny'}`;
+        panel.className = `result ${RESULTADOS[tipo].clase}`;
         panel.hidden = false;
-        $('#resultIcon').innerHTML = allowed ? TIC : EQUIS;
-        $('#resultStatus').textContent = allowed ? 'PERMITIDO' : 'DENEGADO';
+        $('#resultIcon').innerHTML = RESULTADOS[tipo].icono;
+        $('#resultStatus').textContent = RESULTADOS[tipo].titulo;
         $('#resultDetail').textContent = message;
         $('#cameraState').textContent = 'En pausa tras el escaneo…';
       }
@@ -514,9 +524,10 @@
           const detalle = data.permitido && data.nombre
             ? `${data.nombre} · ${data.evento || ''} · ${data.tipoEntrada || ''}`
             : (data.mensaje || 'No se pudo validar el ticket.');
-          showResult(Boolean(data.permitido), detalle);
+          // ok:false es que la ruta no pudo revisar el ticket, no que lo rechazara.
+          showResult(data.permitido ? 'allow' : (data.ok ? 'deny' : 'error'), detalle);
         } catch (error) {
-          showResult(false, 'No se pudo conectar con el servidor.');
+          showResult('error', 'No se pudo conectar con el servidor.');
         }
       }
 
@@ -545,7 +556,7 @@
         if (typeof Html5Qrcode === 'undefined') {
           $('#cameraState').textContent = 'Librería QR no disponible';
           $('#cameraPerm').textContent = 'Sin librería';
-          showResult(false, 'No se pudo cargar el lector QR. Recargá la página o verificá la conexión.');
+          showResult('error', 'No se pudo cargar el lector QR. Recargá la página o verificá la conexión.');
           return;
         }
 

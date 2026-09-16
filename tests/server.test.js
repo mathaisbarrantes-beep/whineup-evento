@@ -92,3 +92,30 @@ test('GET /api/config returns the SINPE number when it is set', async () => {
     delete process.env.PAYMENT_PHONE;
   }
 });
+
+// El personal y los eventos son lo único que un staff no puede tocar. Estas
+// rutas tienen que negarse antes de llegar a Supabase.
+test('GET /api/admin/usuarios returns 401 without a token', async () => {
+  const res = await request(app).get('/api/admin/usuarios');
+  assert.equal(res.status, 401);
+});
+
+test('PUT /api/admin/usuarios/:id/rol returns 401 without a token', async () => {
+  const res = await request(app).put('/api/admin/usuarios/abc/rol').send({ rol: 'staff' });
+  assert.equal(res.status, 401);
+});
+
+test('GET /api/admin/usuarios returns 503 with a token when unconfigured', async () => {
+  const res = await request(app).get('/api/admin/usuarios').set('Authorization', 'Bearer fake');
+  assert.equal(res.status, 503);
+});
+
+test('GET /api/admin/pagos-pendientes returns 401 without a token', async () => {
+  const res = await request(app).get('/api/admin/pagos-pendientes');
+  assert.equal(res.status, 401);
+});
+
+test('GET /api/admin/eventos returns 401 without a token', async () => {
+  const res = await request(app).get('/api/admin/eventos');
+  assert.equal(res.status, 401);
+});

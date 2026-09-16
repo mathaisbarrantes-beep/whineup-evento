@@ -8,6 +8,7 @@ const { buildSupabaseClient } = require("./lib/supabaseClient");
 const { createAuthMiddleware } = require("./lib/auth");
 const { createEventosRepo } = require("./lib/eventos");
 const { createEntradasRepo, isUuid } = require("./lib/entradas");
+const { createUsuariosRepo } = require("./lib/usuarios");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -37,6 +38,7 @@ const { supabase, supabaseConfigured } = buildSupabaseClient();
 const { requireRole, getUserAndRole } = createAuthMiddleware({ supabase, supabaseConfigured });
 const eventosRepo = createEventosRepo({ supabase, supabaseConfigured });
 const entradasRepo = createEntradasRepo({ supabase, supabaseConfigured });
+const usuariosRepo = createUsuariosRepo({ supabase, supabaseConfigured });
 
 function requireSupabase(req, res, next) {
   if (!supabaseConfigured) {
@@ -207,6 +209,43 @@ app.delete("/api/admin/eventos/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
+// El personal lo gestiona solo un admin. Los eventos y el personal son las
+// dos cosas que un staff no puede tocar: todo lo demas de la operacion si.
+app.get("/api/admin/usuarios", requireRole("admin"), async (req, res) => {
+  try {
+    const usuarios = await usuariosRepo.listar();
+    res.json({ ok: true, usuarios });
+  } catch (error) {
+    console.error("Error al listar usuarios:", error);
+    res.status(500).json({ ok: false, mensaje: "No se pudieron consultar los usuarios." });
+  }
+});
+
+const ERRORES_ROL = {
+  ROL_INVALIDO: [400, "El rol debe ser staff o cliente."],
+  NO_A_TI_MISMO: [400, "No puedes cambiar tu propio rol."],
+  NO_TOCAR_ADMIN: [403, "No se puede cambiar el rol de otro administrador desde aquí."],
+  NO_ENCONTRADO: [404, "Usuario no encontrado."]
+};
+
+app.put("/api/admin/usuarios/:id/rol", requireRole("admin"), async (req, res) => {
+  try {
+    const usuario = await usuariosRepo.cambiarRol({
+      id: String(req.params.id || "").trim(),
+      rol: String(req.body.rol || "").trim(),
+      actorId: req.usuario.id
+    });
+    res.json({ ok: true, usuario, mensaje: `Rol actualizado a ${usuario.rol}.` });
+  } catch (error) {
+    const conocido = error && ERRORES_ROL[error.error];
+    if (conocido) {
+      return res.status(conocido[0]).json({ ok: false, mensaje: conocido[1] });
+    }
+    console.error("Error al cambiar el rol:", error);
+    res.status(500).json({ ok: false, mensaje: "No se pudo cambiar el rol." });
+  }
+});
+
 app.post("/api/crear-ticket", requireRole(), async (req, res) => {
   try {
     const nombre = String(req.body.nombre || "").trim();
@@ -281,7 +320,7 @@ app.get("/api/mis-entradas", requireRole(), async (req, res) => {
   }
 });
 
-app.post("/api/admin/confirmar-pago/:ticketId", requireRole("admin"), async (req, res) => {
+app.post("/api/admin/confirmar-pago/:ticketId", requireRole("admin", "staff"), async (req, res) => {
   try {
     const ticket = await entradasRepo.obtenerPorId(req.params.ticketId);
     if (!ticket) {
@@ -307,7 +346,7 @@ app.post("/api/admin/confirmar-pago/:ticketId", requireRole("admin"), async (req
   }
 });
 
-app.get("/api/admin/pagos-pendientes", requireRole("admin"), async (req, res) => {
+app.get("/api/admin/pagos-pendientes", requireRole("admin", "staff"), async (req, res) => {
   try {
     const tickets = await entradasRepo.pagosPendientes();
     res.json({ ok: true, tickets });
@@ -317,7 +356,7 @@ app.get("/api/admin/pagos-pendientes", requireRole("admin"), async (req, res) =>
   }
 });
 
-app.get("/api/admin/entradas", requireRole("admin"), async (req, res) => {
+app.get("/api/admin/entradas", requireRole("admin", "staff"), async (req, res) => {
   try {
     const tickets = await entradasRepo.generadas();
     res.json({ ok: true, tickets });

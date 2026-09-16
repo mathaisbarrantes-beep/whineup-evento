@@ -114,6 +114,10 @@
       .qr-card .tipo{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint);margin:0 0 2px;}
       .qr-card .id{font-size:9px;color:var(--text-faint);margin:6px 0 0;word-break:break-all;}
 
+      .acciones{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+      .nota-admin{font-size:11px;color:var(--text-faint);line-height:1.5;margin:12px 0 0;}
+      #eventoForm input[type="datetime-local"]{color-scheme:dark;}
+
       @media (max-width:920px){
         .layout{grid-template-columns:1fr;padding:20px;}
         .header-inner{padding:16px 20px;}
@@ -202,6 +206,42 @@
           </div>
           <div class="list-col" id="generatedTickets"></div>
         </div>
+
+        <div id="eventosSection" hidden>
+          <div class="section-head">
+            <h4>Eventos</h4>
+            <button type="button" class="refresh" id="refreshEventos">Actualizar</button>
+          </div>
+          <div class="list-col" id="eventosList"></div>
+
+          <form class="form-grid" id="eventoForm">
+            <input type="hidden" id="eventoId" />
+            <input class="form-full" id="eventoNombre" type="text" required placeholder="Nombre del evento" autocomplete="off" />
+            <input id="eventoFecha" type="datetime-local" required />
+            <input id="eventoLugar" type="text" required placeholder="Lugar" autocomplete="off" />
+            <input id="eventoPrecio" type="number" min="0" step="1" required placeholder="Precio en colones" />
+            <select id="eventoCategoria">
+              <option value="General">General</option>
+              <option value="VIP">VIP</option>
+            </select>
+            <input class="form-full" id="eventoDescripcion" type="text" placeholder="Descripción (opcional)" autocomplete="off" />
+            <input class="form-full" id="eventoCupo" type="number" min="1" placeholder="Cupo máximo (opcional)" />
+            <button type="submit" class="gen-btn" id="eventoSubmit">Crear evento</button>
+            <button type="button" class="refresh form-full" id="eventoCancelar" hidden>Cancelar edición</button>
+          </form>
+          <div class="aviso" id="eventoResult" hidden role="status"></div>
+        </div>
+
+        <div id="personalSection" hidden>
+          <div class="section-head">
+            <h4>Personal</h4>
+            <button type="button" class="refresh" id="refreshUsuarios">Actualizar</button>
+          </div>
+          <div class="list-col" id="usuariosList"></div>
+          <div class="aviso" id="usuarioResult" hidden role="status"></div>
+          <p class="nota-admin">Desde aquí solo se reparte y se quita el rol de staff. Los administradores se crean a mano en el SQL Editor de Supabase, a propósito.</p>
+        </div>
+
       </div>
     </div>
 
@@ -299,15 +339,25 @@
           $('#userLabel').hidden = false;
           $('#roleState').textContent = data.user.role;
 
-          if (['admin', 'staff'].includes(data.user.role)) {
-            $('#adminGenerator').hidden = false;
-          }
-          if (data.user.role !== 'admin') {
-            $('#paymentApproval').hidden = true;
-            $('#ticketsSection').hidden = true;
-          } else {
+          // Staff ve y opera todo lo de las compras. Lo único reservado al
+          // admin son los eventos y el personal.
+          const rol = data.user.role;
+          const operativo = ['admin', 'staff'].includes(rol);
+          const esAdmin = rol === 'admin';
+
+          $('#adminGenerator').hidden = !operativo;
+          $('#paymentApproval').hidden = !operativo;
+          $('#ticketsSection').hidden = !operativo;
+          $('#eventosSection').hidden = !esAdmin;
+          $('#personalSection').hidden = !esAdmin;
+
+          if (operativo) {
             loadPendingPayments();
             loadGeneratedTickets();
+          }
+          if (esAdmin) {
+            loadEventos();
+            loadUsuarios();
           }
         } catch (error) {
           console.error('Error verificando sesión:', error);
@@ -556,6 +606,226 @@
         await confirmPayment(ticketId, null);
         $('#paymentApprovalForm').reset();
       });
+
+      /* -------------------------------------------------------- eventos */
+
+      // <input type="datetime-local"> no lleva zona horaria. Si el valor crudo
+      // llega a Postgres, se interpreta en la zona de la base (UTC) y el evento
+      // se guarda seis horas corrido. Convertimos aquí, con la zona del
+      // navegador del admin, que es la del evento.
+      function aDatetimeLocal(iso) {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '';
+        const p = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+      }
+
+      function formatFechaEvento(valor) {
+        if (!valor) return 'Sin fecha';
+        const d = new Date(valor);
+        if (Number.isNaN(d.getTime())) return String(valor);
+        return new Intl.DateTimeFormat('es-CR', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
+      }
+
+      let eventosCache = [];
+
+      function renderEventos(lista) {
+        eventosCache = lista;
+        const caja = $('#eventosList');
+        if (!lista.length) {
+          caja.innerHTML = '<div class="empty">Todavía no hay eventos. Creá el primero abajo.</div>';
+          return;
+        }
+
+        caja.innerHTML = lista.map((ev) => `
+          <div class="row-card">
+            <div class="row-top">
+              <div>
+                <b>${esc(ev.nombre)}</b>
+                <div class="meta">${esc(formatFechaEvento(ev.fecha))} · ${esc(ev.lugar)}</div>
+                <div class="meta">${esc(ev.categoria)} · ${formatCRC(ev.precio)}${ev.cupoMaximo ? ` · cupo ${ev.cupoMaximo}` : ''}</div>
+              </div>
+              <span class="badge ${ev.activo ? 'badge-active' : 'badge-pending'}">${ev.activo ? 'Activo' : 'Oculto'}</span>
+            </div>
+            <div class="acciones">
+              <button type="button" class="approve" data-editar="${esc(ev.id)}">Editar</button>
+              <button type="button" class="approve" data-activo="${esc(ev.id)}" data-valor="${ev.activo ? 'false' : 'true'}">${ev.activo ? 'Ocultar' : 'Reactivar'}</button>
+            </div>
+          </div>
+        `).join('');
+
+        caja.querySelectorAll('[data-editar]').forEach((b) => {
+          b.addEventListener('click', () => editarEvento(b.dataset.editar));
+        });
+        caja.querySelectorAll('[data-activo]').forEach((b) => {
+          b.addEventListener('click', () => cambiarActivo(b.dataset.activo, b.dataset.valor === 'true', b));
+        });
+      }
+
+      async function loadEventos() {
+        try {
+          const response = await authFetch('/api/admin/eventos');
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.mensaje || 'No se pudieron cargar los eventos.');
+          renderEventos(data.eventos || []);
+        } catch (error) {
+          $('#eventosList').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+        }
+      }
+
+      function limpiarFormEvento() {
+        $('#eventoForm').reset();
+        $('#eventoId').value = '';
+        $('#eventoSubmit').textContent = 'Crear evento';
+        $('#eventoCancelar').hidden = true;
+      }
+
+      function editarEvento(id) {
+        const ev = eventosCache.find((x) => x.id === id);
+        if (!ev) return;
+        $('#eventoId').value = ev.id;
+        $('#eventoNombre').value = ev.nombre || '';
+        $('#eventoFecha').value = aDatetimeLocal(ev.fecha);
+        $('#eventoLugar').value = ev.lugar || '';
+        $('#eventoPrecio').value = ev.precio != null ? Number(ev.precio) : '';
+        $('#eventoCategoria').value = ev.categoria || 'General';
+        $('#eventoDescripcion').value = ev.descripcion || '';
+        $('#eventoCupo').value = ev.cupoMaximo || '';
+        $('#eventoSubmit').textContent = 'Guardar cambios';
+        $('#eventoCancelar').hidden = false;
+        $('#eventoNombre').focus();
+      }
+
+      async function cambiarActivo(id, activo, boton) {
+        boton.disabled = true;
+        try {
+          const response = activo
+            ? await authFetch(`/api/admin/eventos/${encodeURIComponent(id)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activo: true })
+              })
+            : await authFetch(`/api/admin/eventos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+          const data = await response.json();
+          avisar($('#eventoResult'), response.ok ? (activo ? 'Evento reactivado.' : 'Evento oculto de la portada.') : (data.mensaje || 'No se pudo cambiar el evento.'), response.ok);
+          if (response.ok) { loadEventos(); loadAdminEvents(); }
+        } catch (error) {
+          avisar($('#eventoResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          boton.disabled = false;
+        }
+      }
+
+      $('#eventoCancelar').addEventListener('click', limpiarFormEvento);
+
+      $('#eventoForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const id = $('#eventoId').value;
+        const boton = $('#eventoSubmit');
+        const fechaLocal = $('#eventoFecha').value;
+        const fecha = fechaLocal ? new Date(fechaLocal).toISOString() : null;
+        if (!fecha) { avisar($('#eventoResult'), 'Poné una fecha válida.', false); return; }
+
+        const cupo = $('#eventoCupo').value;
+        const cuerpo = {
+          nombre: $('#eventoNombre').value.trim(),
+          fecha,
+          lugar: $('#eventoLugar').value.trim(),
+          precio: Number($('#eventoPrecio').value || 0),
+          categoria: $('#eventoCategoria').value,
+          descripcion: $('#eventoDescripcion').value.trim(),
+          cupoMaximo: cupo ? Number(cupo) : null
+        };
+
+        boton.disabled = true;
+        boton.textContent = id ? 'Guardando…' : 'Creando…';
+        try {
+          const response = await authFetch(
+            id ? `/api/admin/eventos/${encodeURIComponent(id)}` : '/api/admin/eventos',
+            {
+              method: id ? 'PUT' : 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(cuerpo)
+            }
+          );
+          const data = await response.json();
+          avisar($('#eventoResult'), response.ok ? (id ? 'Evento actualizado.' : 'Evento creado.') : (data.mensaje || 'No se pudo guardar el evento.'), response.ok);
+          if (response.ok) { limpiarFormEvento(); loadEventos(); loadAdminEvents(); }
+        } catch (error) {
+          avisar($('#eventoResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          boton.disabled = false;
+          boton.textContent = $('#eventoId').value ? 'Guardar cambios' : 'Crear evento';
+        }
+      });
+
+      /* ------------------------------------------------------- personal */
+
+      function renderUsuarios(lista) {
+        const caja = $('#usuariosList');
+        if (!lista.length) {
+          caja.innerHTML = '<div class="empty">No hay cuentas todavía.</div>';
+          return;
+        }
+
+        caja.innerHTML = lista.map((u) => {
+          const claseBadge = u.rol === 'admin' ? 'badge-active' : (u.rol === 'staff' ? 'badge-used' : 'badge-pending');
+          // A un admin no se le toca el rol desde aquí: el boton ni se dibuja.
+          const boton = u.rol === 'admin'
+            ? ''
+            : `<button type="button" class="approve" data-usuario="${esc(u.id)}" data-rol="${u.rol === 'staff' ? 'cliente' : 'staff'}">${u.rol === 'staff' ? 'Quitar staff' : 'Hacer staff'}</button>`;
+          return `
+            <div class="row-card">
+              <div class="row-top">
+                <div>
+                  <b>${esc(u.nombre || u.correo || 'Sin nombre')}</b>
+                  <div class="meta">${esc(u.correo || '—')}</div>
+                  <div class="meta">${u.ultimoAcceso ? `Último acceso ${esc(formatFecha(u.ultimoAcceso))}` : 'Nunca ha entrado'}</div>
+                </div>
+                <span class="badge ${claseBadge}">${esc(u.rol)}</span>
+              </div>
+              ${boton ? `<div class="acciones">${boton}</div>` : ''}
+            </div>
+          `;
+        }).join('');
+
+        caja.querySelectorAll('[data-usuario]').forEach((b) => {
+          b.addEventListener('click', () => cambiarRol(b.dataset.usuario, b.dataset.rol, b));
+        });
+      }
+
+      async function loadUsuarios() {
+        try {
+          const response = await authFetch('/api/admin/usuarios');
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.mensaje || 'No se pudieron cargar las cuentas.');
+          renderUsuarios(data.usuarios || []);
+        } catch (error) {
+          $('#usuariosList').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+        }
+      }
+
+      async function cambiarRol(id, rol, boton) {
+        boton.disabled = true;
+        boton.textContent = 'Cambiando…';
+        try {
+          const response = await authFetch(`/api/admin/usuarios/${encodeURIComponent(id)}/rol`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rol })
+          });
+          const data = await response.json();
+          avisar($('#usuarioResult'), data.mensaje || 'No se pudo cambiar el rol.', response.ok);
+          if (response.ok) loadUsuarios();
+        } catch (error) {
+          avisar($('#usuarioResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          boton.disabled = false;
+        }
+      }
+
+      $('#refreshEventos').addEventListener('click', loadEventos);
+      $('#refreshUsuarios').addEventListener('click', loadUsuarios);
 
       $('#refreshPayments').addEventListener('click', loadPendingPayments);
       $('#refreshTickets').addEventListener('click', loadGeneratedTickets);

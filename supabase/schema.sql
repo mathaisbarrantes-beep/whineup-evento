@@ -146,7 +146,11 @@ begin
     return;
   end if;
 
-  select nombre into v_evento_nombre from public.eventos where id = v_entrada.evento_id;
+  -- Calificada a propósito: las columnas del "returns table" también son
+  -- variables aquí dentro, y un "nombre" suelto choca con eventos.nombre
+  -- (42702, "column reference is ambiguous"). Postgres no lo detecta al crear
+  -- la función sino al llegar a esta línea, y solo llegan los tickets pagados.
+  select e.nombre into v_evento_nombre from public.eventos e where e.id = v_entrada.evento_id;
 
   if v_entrada.estado <> 'PENDIENTE' then
     return query select false, 'Denegado: ticket ya utilizado.'::text, v_entrada.nombre, v_evento_nombre, v_entrada.tipo_entrada;
@@ -161,7 +165,11 @@ begin
 end;
 $$;
 
-revoke all on function public.validar_entrada(uuid) from public;
+-- "from public" no alcanza en Supabase: anon y authenticated reciben EXECUTE
+-- por privilegios por defecto, y con eso cualquiera con la clave anon podría
+-- marcar una entrada como usada por /rest/v1/rpc/validar_entrada sin pasar por
+-- el staff. Solo el servidor (service_role) la llama.
+revoke all on function public.validar_entrada(uuid) from public, anon, authenticated;
 grant execute on function public.validar_entrada(uuid) to service_role;
 
 -- ========== PRIMER EVENTO (ejemplo, comentado a propósito) ==========

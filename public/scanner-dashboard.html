@@ -238,6 +238,15 @@
             <button type="button" class="refresh" id="refreshUsuarios">Actualizar</button>
           </div>
           <div class="list-col" id="usuariosList"></div>
+
+          <form class="form-grid" id="invitarForm">
+            <input class="form-full" id="invitarCorreo" type="email" required placeholder="Correo de quien querés sumar" autocomplete="off" />
+            <select class="form-full" id="invitarRol">
+              <option value="staff">Entra como staff</option>
+              <option value="cliente">Entra como cliente</option>
+            </select>
+            <button type="submit" class="gen-btn" id="invitarButton">Enviar invitación</button>
+          </form>
           <div class="aviso" id="usuarioResult" hidden role="status"></div>
           <p class="nota-admin">Desde aquí solo se reparte y se quita el rol de staff. Los administradores se crean a mano en el SQL Editor de Supabase, a propósito.</p>
         </div>
@@ -780,7 +789,7 @@
                 <div>
                   <b>${esc(u.nombre || u.correo || 'Sin nombre')}</b>
                   <div class="meta">${esc(u.correo || '—')}</div>
-                  <div class="meta">${u.ultimoAcceso ? `Último acceso ${esc(formatFecha(u.ultimoAcceso))}` : 'Nunca ha entrado'}</div>
+                  <div class="meta">${u.pendiente ? 'Invitación sin aceptar' : (u.ultimoAcceso ? `Último acceso ${esc(formatFecha(u.ultimoAcceso))}` : 'Nunca ha entrado')}</div>
                 </div>
                 <span class="badge ${claseBadge}">${esc(u.rol)}</span>
               </div>
@@ -823,6 +832,35 @@
           boton.disabled = false;
         }
       }
+
+      $('#invitarForm').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const boton = $('#invitarButton');
+        boton.disabled = true;
+        boton.textContent = 'Enviando…';
+
+        try {
+          const response = await authFetch('/api/admin/usuarios/invitar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              correo: $('#invitarCorreo').value.trim(),
+              rol: $('#invitarRol').value
+            })
+          });
+          const data = await response.json();
+          avisar($('#usuarioResult'), data.mensaje || 'No se pudo enviar la invitación.', response.ok);
+          if (response.ok) {
+            $('#invitarForm').reset();
+            loadUsuarios();
+          }
+        } catch (error) {
+          avisar($('#usuarioResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          boton.disabled = false;
+          boton.textContent = 'Enviar invitación';
+        }
+      });
 
       $('#refreshEventos').addEventListener('click', loadEventos);
       $('#refreshUsuarios').addEventListener('click', loadUsuarios);

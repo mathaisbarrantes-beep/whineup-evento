@@ -119,3 +119,22 @@ test('GET /api/admin/eventos returns 401 without a token', async () => {
   const res = await request(app).get('/api/admin/eventos');
   assert.equal(res.status, 401);
 });
+
+test('POST /api/admin/usuarios/invitar returns 401 without a token', async () => {
+  const res = await request(app).post('/api/admin/usuarios/invitar').send({ correo: 'a@b.com' });
+  assert.equal(res.status, 401);
+});
+
+test('POST /api/admin/usuarios/invitar returns 503 with a token when unconfigured', async () => {
+  const res = await request(app)
+    .post('/api/admin/usuarios/invitar')
+    .set('Authorization', 'Bearer fake')
+    .send({ correo: 'a@b.com' });
+  assert.equal(res.status, 503);
+});
+
+test('GET /establecer-clave serves the invite landing page', async () => {
+  const res = await request(app).get('/establecer-clave');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /html/);
+});

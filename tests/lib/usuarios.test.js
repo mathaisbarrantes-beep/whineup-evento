@@ -159,3 +159,89 @@ test('cambiarRol rejects an unknown user', async () => {
     (err) => err.error === 'NO_ENCONTRADO'
   );
 });
+
+/* ---------------------------------------------------------- invitaciones */
+
+function fakeInvitador({ resultado, errorInvite, onUpdate } = {}) {
+  return {
+    auth: {
+      admin: {
+        inviteUserByEmail: async (correo, opciones) => {
+          if (errorInvite) return { data: null, error: errorInvite };
+          return { data: { user: { id: resultado || CLIENTE, email: correo } }, error: null, opciones };
+        }
+      }
+    },
+    from(tabla) {
+      assert.equal(tabla, 'perfiles');
+      return {
+        update(cambios) {
+          return { eq: async (_col, id) => { if (onUpdate) onUpdate({ id, cambios }); return { error: null }; } };
+        }
+      };
+    }
+  };
+}
+
+test('invitar rejects with NO_CONFIGURADO when Supabase is not configured', async () => {
+  const repo = createUsuariosRepo({ supabase: null, supabaseConfigured: false });
+  await assert.rejects(
+    () => repo.invitar({ correo: 'a@b.com', baseUrl: 'https://x.com' }),
+    (err) => err === repo.NO_CONFIGURADO
+  );
+});
+
+test('invitar sends the invite and promotes the new account to staff', async () => {
+  let recibido = null;
+  let enviado = null;
+  const supabase = fakeInvitador({ onUpdate: (x) => { recibido = x; } });
+  const original = supabase.auth.admin.inviteUserByEmail;
+  supabase.auth.admin.inviteUserByEmail = async (correo, opciones) => {
+    enviado = { correo, opciones };
+    return original(correo, opciones);
+  };
+
+  const repo = createUsuariosRepo({ supabase, supabaseConfigured: true });
+  const r = await repo.invitar({ correo: '  Staff@Whineup.CR ', baseUrl: 'https://whineup-evento.vercel.app/' });
+
+  assert.equal(enviado.correo, 'staff@whineup.cr', 'el correo se normaliza');
+  assert.equal(enviado.opciones.redirectTo, 'https://whineup-evento.vercel.app/establecer-clave');
+  assert.deepEqual(recibido, { id: CLIENTE, cambios: { rol: 'staff' } });
+  assert.equal(r.rol, 'staff');
+});
+
+test('invitar as cliente does not touch the perfil row', async () => {
+  const supabase = fakeInvitador({ onUpdate: () => { throw new Error('no debe actualizar el perfil'); } });
+  const repo = createUsuariosRepo({ supabase, supabaseConfigured: true });
+  const r = await repo.invitar({ correo: 'cliente@x.com', rol: 'cliente', baseUrl: 'https://x.com' });
+  assert.equal(r.rol, 'cliente');
+});
+
+test('invitar rejects a malformed email before calling Supabase', async () => {
+  const supabase = {
+    auth: { admin: { inviteUserByEmail: async () => { throw new Error('no debe llamarse'); } } },
+    from() { throw new Error('no debe llamarse'); }
+  };
+  await assert.rejects(
+    () => createUsuariosRepo({ supabase, supabaseConfigured: true }).invitar({ correo: 'no-es-correo', baseUrl: 'https://x.com' }),
+    (err) => err.error === 'CORREO_INVALIDO'
+  );
+});
+
+test('invitar refuses to hand out admin', async () => {
+  const supabase = fakeInvitador();
+  await assert.rejects(
+    () => createUsuariosRepo({ supabase, supabaseConfigured: true })
+      .invitar({ correo: 'a@b.com', rol: 'admin', baseUrl: 'https://x.com' }),
+    (err) => err.error === 'ROL_INVALIDO'
+  );
+});
+
+test('invitar maps an already-registered address to YA_EXISTE', async () => {
+  const supabase = fakeInvitador({ errorInvite: { message: 'A user with this email address has already been registered' } });
+  await assert.rejects(
+    () => createUsuariosRepo({ supabase, supabaseConfigured: true })
+      .invitar({ correo: 'a@b.com', baseUrl: 'https://x.com' }),
+    (err) => err.error === 'YA_EXISTE'
+  );
+});

@@ -225,8 +225,36 @@ const ERRORES_ROL = {
   ROL_INVALIDO: [400, "El rol debe ser staff o cliente."],
   NO_A_TI_MISMO: [400, "No puedes cambiar tu propio rol."],
   NO_TOCAR_ADMIN: [403, "No se puede cambiar el rol de otro administrador desde aquí."],
-  NO_ENCONTRADO: [404, "Usuario no encontrado."]
+  NO_ENCONTRADO: [404, "Usuario no encontrado."],
+  CORREO_INVALIDO: [400, "Escribe un correo válido."],
+  YA_EXISTE: [409, "Ya hay una cuenta con ese correo. Búscala en la lista y cámbiale el rol."],
+  SIN_USUARIO: [500, "Supabase no devolvió la cuenta invitada."]
 };
+
+// Invitar en vez de crear la cuenta aquí: Supabase manda el correo y la
+// persona elige su propia contraseña. Ninguna contraseña pasa por esta
+// aplicación ni por el navegador de quien invita.
+app.post("/api/admin/usuarios/invitar", requireRole("admin"), async (req, res) => {
+  try {
+    const usuario = await usuariosRepo.invitar({
+      correo: req.body.correo,
+      rol: String(req.body.rol || "staff").trim(),
+      baseUrl: emailer.baseUrl
+    });
+    res.status(201).json({
+      ok: true,
+      usuario,
+      mensaje: `Invitación enviada a ${usuario.correo}. Entrará como ${usuario.rol} en cuanto acepte.`
+    });
+  } catch (error) {
+    const conocido = error && ERRORES_ROL[error.error];
+    if (conocido) {
+      return res.status(conocido[0]).json({ ok: false, mensaje: conocido[1] });
+    }
+    console.error("Error al invitar:", error);
+    res.status(500).json({ ok: false, mensaje: "No se pudo enviar la invitación." });
+  }
+});
 
 app.put("/api/admin/usuarios/:id/rol", requireRole("admin"), async (req, res) => {
   try {
@@ -485,6 +513,12 @@ app.post("/api/validar-ticket", requireRole("staff", "admin"), async (req, res) 
     console.error("Error al validar ticket:", error);
     res.status(500).json({ ok: false, permitido: false, mensaje: "No se pudo validar el ticket." });
   }
+});
+
+// Adonde vuelve la persona desde el correo de invitación. Supabase deja la
+// sesión en el fragmento de la URL y la página la usa para fijar la clave.
+app.get("/establecer-clave", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "establecer-clave.html"));
 });
 
 app.get("/login", (req, res) => {

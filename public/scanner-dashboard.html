@@ -119,6 +119,8 @@
       .scan-acciones{display:flex;gap:8px;flex-wrap:wrap;}
       .scan-acciones .btn-line{display:inline-flex;align-items:center;text-decoration:none;}
       .nota-admin{font-size:11px;color:var(--text-faint);line-height:1.5;margin:12px 0 0;}
+      .enlace-caja{margin-top:12px;border:1px solid var(--border-strong);border-radius:12px;padding:12px;}
+      .enlace-caja input{width:100%;background:oklch(11% 0 0);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:12px;font-family:ui-monospace,Consolas,monospace;outline:none;}
       #eventoForm input[type="datetime-local"]{color-scheme:dark;}
 
       @media (max-width:920px){
@@ -254,10 +256,18 @@
               <option value="staff">Entra como staff</option>
               <option value="cliente">Entra como cliente</option>
             </select>
-            <button type="submit" class="gen-btn" id="invitarButton">Enviar invitación</button>
+            <button type="submit" class="gen-btn" id="invitarButton">Generar enlace</button>
           </form>
           <div class="aviso" id="usuarioResult" hidden role="status"></div>
-          <p class="nota-admin">Desde aquí solo se reparte y se quita el rol de staff. Los administradores se crean a mano en el SQL Editor de Supabase, a propósito.</p>
+          <div class="enlace-caja" id="enlaceCaja" hidden>
+            <input type="text" id="enlaceTexto" readonly aria-label="Enlace para poner la contraseña" />
+            <div class="acciones">
+              <button type="button" class="approve" id="copiarEnlace">Copiar</button>
+              <button type="button" class="approve" id="compartirEnlace" hidden>Compartir</button>
+            </div>
+            <p class="nota-admin">Sirve una sola vez y vence en una hora. No lo abras vos: se gasta y la otra persona ya no puede usarlo.</p>
+          </div>
+          <p class="nota-admin">No sale ningún correo: el enlace se lo pasás vos. A alguien de staff que ya tiene cuenta, el mismo botón le da un enlace para poner una contraseña nueva. Desde aquí solo se reparte y se quita el rol de staff; los administradores se crean a mano en el SQL Editor de Supabase, a propósito.</p>
         </div>
 
       </div>
@@ -878,7 +888,9 @@
         event.preventDefault();
         const boton = $('#invitarButton');
         boton.disabled = true;
-        boton.textContent = 'Enviando…';
+        boton.textContent = 'Generando…';
+        // Un enlace anterior a la vista junto a un error nuevo parece el bueno.
+        $('#enlaceCaja').hidden = true;
 
         try {
           const response = await authFetch('/api/admin/usuarios/invitar', {
@@ -890,8 +902,11 @@
             })
           });
           const data = await response.json();
-          avisar($('#usuarioResult'), data.mensaje || 'No se pudo enviar la invitación.', response.ok);
-          if (response.ok) {
+          avisar($('#usuarioResult'), data.mensaje || 'No se pudo generar el enlace.', response.ok);
+          if (response.ok && data.enlace) {
+            $('#enlaceTexto').value = data.enlace;
+            $('#copiarEnlace').textContent = 'Copiar';
+            $('#enlaceCaja').hidden = false;
             $('#invitarForm').reset();
             loadUsuarios();
           }
@@ -899,9 +914,33 @@
           avisar($('#usuarioResult'), 'No se pudo conectar con el servidor.', false);
         } finally {
           boton.disabled = false;
-          boton.textContent = 'Enviar invitación';
+          boton.textContent = 'Generar enlace';
         }
       });
+
+      $('#copiarEnlace').addEventListener('click', async () => {
+        const campo = $('#enlaceTexto');
+        try {
+          await navigator.clipboard.writeText(campo.value);
+        } catch (error) {
+          // Sin permiso para el portapapeles queda el método viejo.
+          campo.select();
+          document.execCommand('copy');
+        }
+        $('#copiarEnlace').textContent = 'Copiado';
+      });
+
+      // En el teléfono abre el menú de compartir: WhatsApp, Telegram, lo que haya.
+      if (navigator.share) {
+        $('#compartirEnlace').hidden = false;
+        $('#compartirEnlace').addEventListener('click', () => {
+          navigator.share({
+            title: 'WhineUp',
+            text: 'Tu acceso al panel de WhineUp. Abrilo y poné tu contraseña:',
+            url: $('#enlaceTexto').value
+          }).catch(() => { /* cerró el menú sin compartir */ });
+        });
+      }
 
       // Si las cortesías o las confirmaciones no llegan, esto dice por qué sin
       // tener que abrir los logs del proveedor.

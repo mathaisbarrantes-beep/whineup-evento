@@ -232,24 +232,29 @@ const ERRORES_ROL = {
   NO_TOCAR_ADMIN: [403, "No se puede cambiar el rol de otro administrador desde aquí."],
   NO_ENCONTRADO: [404, "Usuario no encontrado."],
   CORREO_INVALIDO: [400, "Escribe un correo válido."],
-  YA_EXISTE: [409, "Ya hay una cuenta con ese correo. Búscala en la lista y cámbiale el rol."],
-  SIN_USUARIO: [500, "Supabase no devolvió la cuenta invitada."]
+  YA_EXISTE: [409, "Ya hay una cuenta con ese correo. Si es de cliente, hacela staff en la lista y volvé a generar el enlace."],
+  ES_ADMIN: [403, "A una cuenta de administrador no se le generan enlaces desde el panel."],
+  SIN_USUARIO: [500, "Supabase no devolvió la cuenta invitada."],
+  SIN_ENLACE: [500, "Supabase no devolvió el enlace."]
 };
 
-// Invitar en vez de crear la cuenta aquí: Supabase manda el correo y la
-// persona elige su propia contraseña. Ninguna contraseña pasa por esta
-// aplicación ni por el navegador de quien invita.
+// No sale ningún correo: el panel recibe un enlace y quien invita lo comparte
+// por donde quiera. La persona elige su contraseña al abrirlo, así que ninguna
+// contraseña pasa por esta aplicación ni por el navegador de quien invita.
 app.post("/api/admin/usuarios/invitar", requireRole("admin"), async (req, res) => {
   try {
-    const usuario = await usuariosRepo.invitar({
+    const { enlace, nueva, ...usuario } = await usuariosRepo.invitar({
       correo: req.body.correo,
       rol: String(req.body.rol || "staff").trim(),
       baseUrl: emailer.baseUrl
     });
-    res.status(201).json({
+    res.status(nueva ? 201 : 200).json({
       ok: true,
       usuario,
-      mensaje: `Invitación enviada a ${usuario.correo}. Entrará como ${usuario.rol} en cuanto acepte.`
+      enlace,
+      mensaje: nueva
+        ? `Cuenta creada para ${usuario.correo} como ${usuario.rol}. Pasale este enlace para que ponga su contraseña.`
+        : `${usuario.correo} ya tenía cuenta de staff. Con este enlace pone una contraseña nueva.`
     });
   } catch (error) {
     const conocido = error && ERRORES_ROL[error.error];

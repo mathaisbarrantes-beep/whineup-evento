@@ -162,86 +162,229 @@ test('cambiarRol rejects an unknown user', async () => {
 
 /* ---------------------------------------------------------- invitaciones */
 
-function fakeInvitador({ resultado, errorInvite, onUpdate } = {}) {
+const NUEVO = 'dddddddd-0000-4000-8000-000000000004';
+const TOKEN = 'a3f1c9e27b5d48f06e2c1b9a7d4e3f5081c6b2a9d7e4f3c1b8a5d2e9';
+const BASE = 'https://whineup-evento.vercel.app';
+
+function usuarioAuth(id, email, extra = {}) {
   return {
+    id,
+    aud: 'authenticated',
+    role: 'authenticated',
+    email,
+    email_confirmed_at: '2026-09-16T07:40:35Z',
+    invited_at: '2026-09-16T07:40:04Z',
+    last_sign_in_at: '2026-09-16T07:40:35Z',
+    created_at: '2026-09-16T07:40:04Z',
+    updated_at: '2026-09-16T07:40:35Z',
+    app_metadata: { provider: 'email', providers: ['email'] },
+    user_metadata: {},
+    identities: [],
+    ...extra
+  };
+}
+
+const YA_REGISTRADO = {
+  data: { properties: null, user: null },
+  error: { message: 'A user with this email address has already been registered', status: 422, code: 'email_exists' }
+};
+
+// Imita a GoTrue: generate_link no manda ningún correo; 'invite' crea la cuenta
+// y falla si ya está confirmada; 'recovery' exige que exista. listUsers pagina
+// y no devuelve más de `tope` por página, aunque se pidan más.
+function fakeEnlaces({ usuarios = [], perfiles = [], tope = 100, respuestaEnlace } = {}) {
+  const enlaces = [];
+  const actualizaciones = [];
+  const supabase = {
     auth: {
       admin: {
-        inviteUserByEmail: async (correo, opciones) => {
-          if (errorInvite) return { data: null, error: errorInvite };
-          return { data: { user: { id: resultado || CLIENTE, email: correo } }, error: null, opciones };
+        listUsers: async ({ page = 1, perPage = 50 } = {}) => {
+          const tamano = Math.min(perPage, tope);
+          const desde = (page - 1) * tamano;
+          return {
+            data: { users: usuarios.slice(desde, desde + tamano), aud: 'authenticated', nextPage: null, lastPage: 0, total: 0 },
+            error: null
+          };
+        },
+        generateLink: async (params) => {
+          enlaces.push(params);
+          if (respuestaEnlace) return respuestaEnlace;
+          const existente = usuarios.find((u) => u.email === params.email);
+          if (params.type === 'invite' && existente && existente.email_confirmed_at) return YA_REGISTRADO;
+          if (params.type === 'recovery' && !existente) {
+            return {
+              data: { properties: null, user: null },
+              error: { message: 'User with this email not found', status: 404, code: 'user_not_found' }
+            };
+          }
+          const user = existente || usuarioAuth(NUEVO, params.email, {
+            email_confirmed_at: null, last_sign_in_at: null, invited_at: '2026-09-16T08:30:00Z'
+          });
+          return {
+            data: {
+              properties: {
+                action_link: `https://orgbeuxvwgmrmnvkmyah.supabase.co/auth/v1/verify?token=${TOKEN}&type=${params.type}&redirect_to=http://localhost:3000`,
+                email_otp: '482913',
+                hashed_token: TOKEN,
+                redirect_to: 'http://localhost:3000',
+                verification_type: params.type
+              },
+              user
+            },
+            error: null
+          };
         }
       }
     },
     from(tabla) {
       assert.equal(tabla, 'perfiles');
       return {
+        select() {
+          return {
+            eq(_col, id) {
+              return { maybeSingle: async () => ({ data: perfiles.find((p) => p.id === id) || null, error: null }) };
+            }
+          };
+        },
         update(cambios) {
-          return { eq: async (_col, id) => { if (onUpdate) onUpdate({ id, cambios }); return { error: null }; } };
+          return { eq: async (_col, id) => { actualizaciones.push({ id, cambios }); return { error: null }; } };
         }
       };
     }
   };
+  return { supabase, enlaces, actualizaciones };
+}
+
+function repoCon(fake) {
+  return createUsuariosRepo({ supabase: fake.supabase, supabaseConfigured: true });
 }
 
 test('invitar rejects with NO_CONFIGURADO when Supabase is not configured', async () => {
   const repo = createUsuariosRepo({ supabase: null, supabaseConfigured: false });
   await assert.rejects(
-    () => repo.invitar({ correo: 'a@b.com', baseUrl: 'https://x.com' }),
+    () => repo.invitar({ correo: 'a@b.com', baseUrl: BASE }),
     (err) => err === repo.NO_CONFIGURADO
   );
 });
 
-test('invitar sends the invite and promotes the new account to staff', async () => {
-  let recibido = null;
-  let enviado = null;
-  const supabase = fakeInvitador({ onUpdate: (x) => { recibido = x; } });
-  const original = supabase.auth.admin.inviteUserByEmail;
-  supabase.auth.admin.inviteUserByEmail = async (correo, opciones) => {
-    enviado = { correo, opciones };
-    return original(correo, opciones);
-  };
+// El enlace apunta a nuestra página y lleva el código en el fragmento. El verify
+// de Supabase se gasta en cuanto WhatsApp lo abre para armar la vista previa.
+test('invitar creates the account without sending mail and returns a shareable link', async () => {
+  const fake = fakeEnlaces();
+  const r = await repoCon(fake).invitar({ correo: '  Staff@Whineup.CR ', baseUrl: `${BASE}/` });
 
-  const repo = createUsuariosRepo({ supabase, supabaseConfigured: true });
-  const r = await repo.invitar({ correo: '  Staff@Whineup.CR ', baseUrl: 'https://whineup-evento.vercel.app/' });
-
-  assert.equal(enviado.correo, 'staff@whineup.cr', 'el correo se normaliza');
-  assert.equal(enviado.opciones.redirectTo, 'https://whineup-evento.vercel.app/establecer-clave');
-  assert.deepEqual(recibido, { id: CLIENTE, cambios: { rol: 'staff' } });
-  assert.equal(r.rol, 'staff');
+  assert.deepEqual(fake.enlaces, [{ type: 'invite', email: 'staff@whineup.cr' }]);
+  assert.equal(r.enlace, `https://whineup-evento.vercel.app/establecer-clave#token_hash=${TOKEN}&type=invite`);
+  assert.deepEqual(fake.actualizaciones, [{ id: NUEVO, cambios: { rol: 'staff' } }]);
+  assert.deepEqual(
+    { id: r.id, correo: r.correo, rol: r.rol, nueva: r.nueva },
+    { id: NUEVO, correo: 'staff@whineup.cr', rol: 'staff', nueva: true }
+  );
 });
 
-test('invitar as cliente does not touch the perfil row', async () => {
-  const supabase = fakeInvitador({ onUpdate: () => { throw new Error('no debe actualizar el perfil'); } });
-  const repo = createUsuariosRepo({ supabase, supabaseConfigured: true });
-  const r = await repo.invitar({ correo: 'cliente@x.com', rol: 'cliente', baseUrl: 'https://x.com' });
+test('invitar as cliente leaves the perfil the trigger created', async () => {
+  const fake = fakeEnlaces();
+  const r = await repoCon(fake).invitar({ correo: 'cliente@x.com', rol: 'cliente', baseUrl: BASE });
+  assert.deepEqual(fake.actualizaciones, []);
   assert.equal(r.rol, 'cliente');
+  assert.equal(r.enlace, `https://whineup-evento.vercel.app/establecer-clave#token_hash=${TOKEN}&type=invite`);
 });
 
 test('invitar rejects a malformed email before calling Supabase', async () => {
-  const supabase = {
-    auth: { admin: { inviteUserByEmail: async () => { throw new Error('no debe llamarse'); } } },
-    from() { throw new Error('no debe llamarse'); }
-  };
+  const supabase = { auth: { admin: {} }, from() { throw new Error('no debe llamarse'); } };
   await assert.rejects(
-    () => createUsuariosRepo({ supabase, supabaseConfigured: true }).invitar({ correo: 'no-es-correo', baseUrl: 'https://x.com' }),
+    () => createUsuariosRepo({ supabase, supabaseConfigured: true }).invitar({ correo: 'no-es-correo', baseUrl: BASE }),
     (err) => err.error === 'CORREO_INVALIDO'
   );
 });
 
 test('invitar refuses to hand out admin', async () => {
-  const supabase = fakeInvitador();
+  const fake = fakeEnlaces();
   await assert.rejects(
-    () => createUsuariosRepo({ supabase, supabaseConfigured: true })
-      .invitar({ correo: 'a@b.com', rol: 'admin', baseUrl: 'https://x.com' }),
+    () => repoCon(fake).invitar({ correo: 'a@b.com', rol: 'admin', baseUrl: BASE }),
     (err) => err.error === 'ROL_INVALIDO'
+  );
+  assert.deepEqual(fake.enlaces, []);
+});
+
+// Una cuenta confirmada no se puede volver a invitar. A una de staff se le da
+// un enlace de recuperación: sirve si nunca puso la clave o si se la olvidó.
+test('invitar gives an existing staff account a recovery link instead of a new invite', async () => {
+  const fake = fakeEnlaces({
+    usuarios: [usuarioAuth(STAFF, 'staff@x.com')],
+    perfiles: [{ id: STAFF, rol: 'staff', nombre: 'Staff' }]
+  });
+  const r = await repoCon(fake).invitar({ correo: 'staff@x.com', baseUrl: BASE });
+
+  assert.deepEqual(fake.enlaces, [{ type: 'recovery', email: 'staff@x.com' }]);
+  assert.equal(r.enlace, `https://whineup-evento.vercel.app/establecer-clave#token_hash=${TOKEN}&type=recovery`);
+  assert.deepEqual(fake.actualizaciones, []);
+  assert.deepEqual({ id: r.id, rol: r.rol, nueva: r.nueva }, { id: STAFF, rol: 'staff', nueva: false });
+});
+
+// Un enlace de acceso a un admin es tomar su cuenta. Ni siquiera se genera.
+test('invitar refuses to generate any link for an admin account', async () => {
+  const fake = fakeEnlaces({
+    usuarios: [usuarioAuth(ADMIN, 'admin@x.com')],
+    perfiles: [{ id: ADMIN, rol: 'admin', nombre: 'Admin' }]
+  });
+  await assert.rejects(
+    () => repoCon(fake).invitar({ correo: 'admin@x.com', baseUrl: BASE }),
+    (err) => err.error === 'ES_ADMIN'
+  );
+  assert.deepEqual(fake.enlaces, []);
+});
+
+test('invitar sends an existing cliente back to the role list', async () => {
+  const fake = fakeEnlaces({
+    usuarios: [usuarioAuth(CLIENTE, 'cliente@x.com')],
+    perfiles: [{ id: CLIENTE, rol: 'cliente', nombre: 'Cliente' }]
+  });
+  await assert.rejects(
+    () => repoCon(fake).invitar({ correo: 'cliente@x.com', baseUrl: BASE }),
+    (err) => err.error === 'YA_EXISTE'
+  );
+  assert.deepEqual(fake.enlaces, []);
+});
+
+// Sin recorrer todas las páginas, una cuenta de staff que no está en la
+// primera parece nueva, y Supabase rechaza la invitación.
+test('invitar finds an account past the first page even when the server caps the page size', async () => {
+  const clientes = Array.from({ length: 150 }, (_, i) =>
+    usuarioAuth(`cccccccc-0000-4000-8000-${String(i).padStart(12, '0')}`, `cliente${i}@x.com`));
+  const fake = fakeEnlaces({
+    usuarios: [...clientes, usuarioAuth(STAFF, 'staff@x.com')],
+    perfiles: [{ id: STAFF, rol: 'staff', nombre: 'Staff' }],
+    tope: 100
+  });
+  const r = await repoCon(fake).invitar({ correo: 'staff@x.com', baseUrl: BASE });
+
+  assert.equal(r.id, STAFF);
+  assert.deepEqual(fake.enlaces, [{ type: 'recovery', email: 'staff@x.com' }]);
+});
+
+// La cuenta puede aparecer entre la búsqueda y la invitación.
+test('invitar maps an already-registered address to YA_EXISTE', async () => {
+  const fake = fakeEnlaces({ respuestaEnlace: YA_REGISTRADO });
+  await assert.rejects(
+    () => repoCon(fake).invitar({ correo: 'a@b.com', baseUrl: BASE }),
+    (err) => err.error === 'YA_EXISTE'
   );
 });
 
-test('invitar maps an already-registered address to YA_EXISTE', async () => {
-  const supabase = fakeInvitador({ errorInvite: { message: 'A user with this email address has already been registered' } });
+// Un enlace sin código se vería bien en el panel y fallaría en el teléfono.
+test('invitar refuses to return a link when Supabase sends no token', async () => {
+  const fake = fakeEnlaces({
+    respuestaEnlace: {
+      data: {
+        properties: { action_link: null, email_otp: null, hashed_token: '', redirect_to: null, verification_type: 'invite' },
+        user: usuarioAuth(NUEVO, 'a@b.com', { email_confirmed_at: null })
+      },
+      error: null
+    }
+  });
   await assert.rejects(
-    () => createUsuariosRepo({ supabase, supabaseConfigured: true })
-      .invitar({ correo: 'a@b.com', baseUrl: 'https://x.com' }),
-    (err) => err.error === 'YA_EXISTE'
+    () => repoCon(fake).invitar({ correo: 'a@b.com', baseUrl: BASE }),
+    (err) => err.error === 'SIN_ENLACE'
   );
 });

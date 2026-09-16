@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="robots" content="noindex" />
+    <title>Escáner | WhineUp</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <style>
+      :root{
+        --bg:oklch(6% 0 0);
+        --text:oklch(97% 0 0);
+        --text-dim:oklch(74% 0 0);
+        --text-faint:oklch(52% 0 0);
+        --border:oklch(100% 0 0 / 14%);
+        --border-strong:oklch(100% 0 0 / 34%);
+        --ok:oklch(62% .17 150);
+        --mal:oklch(58% .20 25);
+        --safe-top:env(safe-area-inset-top, 0px);
+        --safe-bottom:env(safe-area-inset-bottom, 0px);
+      }
+      *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+      html,body{height:100%;}
+      body{
+        margin:0;background:var(--bg);color:var(--text);overflow:hidden;
+        font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+        overscroll-behavior:none;
+      }
+      h1,h2{font-family:'Anton','Arial Narrow',sans-serif;font-weight:400;text-transform:uppercase;margin:0;}
+      button{font-family:inherit;cursor:pointer;color:inherit;}
+      a{color:inherit;text-decoration:none;}
+      [hidden]{display:none !important;}
+      :focus-visible{outline:2px solid #fff;outline-offset:2px;}
+
+      .app{position:fixed;inset:0;display:flex;flex-direction:column;}
+
+      .barra{
+        display:flex;align-items:center;justify-content:space-between;gap:12px;
+        padding:calc(var(--safe-top) + 12px) 16px 12px;
+        background:oklch(0% 0 0 / 70%);backdrop-filter:blur(10px);
+        border-bottom:1px solid var(--border);z-index:3;
+      }
+      .barra-info{min-width:0;}
+      .barra-info .quien{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-faint);
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .barra-info h1{font-size:17px;margin-top:2px;}
+      .salir{
+        border:1px solid var(--border-strong);background:transparent;border-radius:999px;
+        padding:10px 16px;font-size:13px;font-weight:600;white-space:nowrap;text-decoration:none;
+        display:inline-flex;align-items:center;min-height:44px;
+      }
+
+      .camara{position:relative;flex:1;min-height:0;background:#000;overflow:hidden;}
+      #reader{position:absolute;inset:0;}
+      #reader video{width:100% !important;height:100% !important;object-fit:cover;display:block;}
+      #reader img{display:none;}
+
+      .mira{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:18px;pointer-events:none;padding:20px;}
+      .marco{width:min(70vw,260px);aspect-ratio:1/1;border:2px solid oklch(100% 0 0 / 45%);border-radius:22px;position:relative;}
+      .marco::before,.marco::after{content:'';position:absolute;width:30px;height:30px;border-color:#fff;}
+      .marco::before{top:-2px;left:-2px;border-top:4px solid;border-left:4px solid;border-radius:10px 0 0 0;}
+      .marco::after{bottom:-2px;right:-2px;border-bottom:4px solid;border-right:4px solid;border-radius:0 0 10px 0;}
+      .pista{font-size:13px;color:oklch(100% 0 0 / 80%);text-align:center;text-shadow:0 1px 6px #000;max-width:30ch;line-height:1.5;}
+
+      /* El resultado tapa la pantalla: en una puerta se mira de reojo y a un
+         brazo de distancia, no se lee un renglón pequeño. */
+      .resultado{
+        position:absolute;inset:0;z-index:4;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:10px;padding:28px;text-align:center;
+      }
+      .resultado.ok{background:var(--ok);color:#03150a;}
+      .resultado.mal{background:var(--mal);color:#1a0505;}
+      .resultado .icono{font-size:82px;line-height:1;font-weight:700;}
+      .resultado h2{font-size:clamp(34px,11vw,54px);line-height:1;}
+      .resultado .detalle{font-size:16px;font-weight:600;line-height:1.4;max-width:28ch;word-break:break-word;}
+      .resultado .toque{font-size:12px;opacity:.72;margin-top:10px;}
+
+      .controles{
+        display:flex;gap:10px;padding:12px 16px calc(var(--safe-bottom) + 16px);
+        background:oklch(0% 0 0 / 70%);backdrop-filter:blur(10px);
+        border-top:1px solid var(--border);z-index:3;
+      }
+      .ctrl{
+        flex:1;min-height:52px;border:1px solid var(--border-strong);background:transparent;
+        border-radius:16px;font-size:14px;font-weight:600;
+        display:flex;align-items:center;justify-content:center;gap:8px;
+      }
+      .ctrl:active{background:oklch(100% 0 0 / 12%);}
+      .ctrl.encendido{background:#fff;color:#0a0a0a;border-color:#fff;}
+      .ctrl svg{flex-shrink:0;}
+
+      .estado{
+        position:absolute;left:0;right:0;bottom:0;padding:10px 16px;z-index:2;
+        font-size:12px;color:oklch(100% 0 0 / 78%);text-align:center;
+        background:linear-gradient(to top, oklch(0% 0 0 / 72%), transparent);
+        text-shadow:0 1px 4px #000;
+      }
+
+      .aviso{
+        position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;gap:14px;padding:32px;text-align:center;
+        background:var(--bg);
+      }
+      .aviso h2{font-size:26px;}
+      .aviso p{color:var(--text-dim);font-size:15px;line-height:1.6;margin:0;max-width:34ch;}
+      .aviso .ctrl{flex:0;min-width:200px;padding:0 24px;}
+
+      @media (prefers-reduced-motion:reduce){*{transition:none !important;animation:none !important;}}
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="barra">
+        <div class="barra-info">
+          <div class="quien" id="quien">Verificando acceso…</div>
+          <h1>Escáner</h1>
+        </div>
+        <a class="salir" href="/scanner-dashboard">Panel</a>
+      </div>
+
+      <div class="camara">
+        <div id="reader"></div>
+
+        <div class="mira" id="mira">
+          <div class="marco"></div>
+          <p class="pista" id="pista">Apuntá al código QR de la entrada</p>
+        </div>
+
+        <div class="estado" id="estado">Preparando cámara…</div>
+
+        <div class="resultado" id="resultado" hidden>
+          <div class="icono" id="resIcono"></div>
+          <h2 id="resTitulo"></h2>
+          <p class="detalle" id="resDetalle"></p>
+          <p class="toque">Tocá para seguir escaneando</p>
+        </div>
+
+        <div class="aviso" id="aviso" hidden>
+          <h2 id="avisoTitulo"></h2>
+          <p id="avisoTexto"></p>
+          <button type="button" class="ctrl" id="avisoBoton" hidden></button>
+        </div>
+      </div>
+
+      <div class="controles">
+        <button type="button" class="ctrl" id="voltear">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.5 4"/><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.5-4"/><path d="M19 3v5h-5M5 21v-5h5"/></svg>
+          Voltear cámara
+        </button>
+        <button type="button" class="ctrl" id="linterna" hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2h6l-1 6-2 3-2-3-1-6Z"/><path d="M12 11v11"/></svg>
+          Linterna
+        </button>
+      </div>
+    </div>
+
+    <script>
+      const $ = (sel) => document.querySelector(sel);
+
+      let supabaseClient = null;
+      let currentSession = null;
+      let scanner = null;
+      let procesando = false;
+      let modo = 'environment';   // la trasera: es la que mira al ticket
+      let camaras = [];
+      let indiceCamara = 0;
+      let linternaEncendida = false;
+      let wakeLock = null;
+
+      function estado(texto) { $('#estado').textContent = texto; }
+
+      function mostrarAviso(titulo, texto, boton) {
+        $('#avisoTitulo').textContent = titulo;
+        $('#avisoTexto').textContent = texto;
+        if (boton) {
+          $('#avisoBoton').textContent = boton.texto;
+          $('#avisoBoton').onclick = boton.accion;
+          $('#avisoBoton').hidden = false;
+        } else {
+          $('#avisoBoton').hidden = true;
+        }
+        $('#aviso').hidden = false;
+      }
+
+      /* ------------------------------------------------------------ sesión */
+
+      function authHeaders() {
+        return currentSession ? { Authorization: `Bearer ${currentSession.access_token}` } : {};
+      }
+
+      async function authFetch(url, options = {}) {
+        return fetch(url, { ...options, headers: { ...(options.headers || {}), ...authHeaders() } });
+      }
+
+      async function iniciarSesion() {
+        const res = await fetch('/api/config');
+        const config = await res.json();
+        if (!config.supabaseUrl || !config.supabaseAnonKey) {
+          window.location.href = '/login';
+          return false;
+        }
+
+        supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+        // supabase-js renueva el token en segundo plano; sin esto, a media
+        // jornada el escáner empezaría a mandar un JWT vencido.
+        supabaseClient.auth.onAuthStateChange((_e, sesion) => { currentSession = sesion; });
+
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        currentSession = session;
+        if (!currentSession) { window.location.href = '/login'; return false; }
+
+        const estadoSesion = await authFetch('/api/session-status').then((r) => r.json());
+        if (!estadoSesion.authenticated || !['staff', 'admin'].includes(estadoSesion.user?.role)) {
+          window.location.href = '/login';
+          return false;
+        }
+
+        $('#quien').textContent = `${estadoSesion.user.name} · ${estadoSesion.user.role}`;
+        return true;
+      }
+
+      /* ------------------------------------------------------------ cámara */
+
+      async function detener() {
+        if (!scanner) return;
+        try { await scanner.stop(); } catch (e) { /* ya estaba parado */ }
+        try { await scanner.clear(); } catch (e) { /* idem */ }
+        scanner = null;
+        linternaEncendida = false;
+        $('#linterna').classList.remove('encendido');
+      }
+
+      async function arrancarCamara() {
+        await detener();
+        scanner = new Html5Qrcode('reader', { verbose: false });
+
+        const ajustes = {
+          fps: 10,
+          qrbox: (ancho, alto) => {
+            const lado = Math.floor(Math.min(ancho, alto) * 0.7);
+            return { width: lado, height: lado };
+          },
+          aspectRatio: undefined
+        };
+
+        // facingMode antes que un id concreto: en un teléfono, devices[0] suele
+        // ser la cámara frontal, que no sirve para escanear en la puerta.
+        const fuente = camaras.length > 1 && indiceCamara > 0
+          ? camaras[indiceCamara % camaras.length].id
+          : { facingMode: modo };
+
+        try {
+          await scanner.start(fuente, ajustes, alLeer, () => {});
+        } catch (error) {
+          // Si el teléfono no tiene esa orientación de cámara, se intenta con
+          // la primera que exista antes de darse por vencido.
+          if (camaras.length) {
+            try {
+              await scanner.start(camaras[0].id, ajustes, alLeer, () => {});
+            } catch (segundo) {
+              throw segundo;
+            }
+          } else {
+            throw error;
+          }
+        }
+
+        $('#mira').hidden = false;
+        estado(modo === 'environment' ? 'Cámara trasera' : 'Cámara frontal');
+        prepararLinterna();
+      }
+
+      function prepararLinterna() {
+        try {
+          const capacidades = scanner.getRunningTrackCapabilities();
+          $('#linterna').hidden = !(capacidades && capacidades.torch);
+        } catch (error) {
+          $('#linterna').hidden = true;
+        }
+      }
+
+      $('#voltear').addEventListener('click', async () => {
+        const boton = $('#voltear');
+        boton.disabled = true;
+        try {
+          if (camaras.length > 1) {
+            indiceCamara = (indiceCamara + 1) % camaras.length;
+            // El índice 0 vuelve a dejar que mande facingMode.
+            if (indiceCamara === 0) modo = modo === 'environment' ? 'user' : 'environment';
+          } else {
+            modo = modo === 'environment' ? 'user' : 'environment';
+          }
+          await arrancarCamara();
+        } catch (error) {
+          estado('No se pudo cambiar de cámara');
+        } finally {
+          boton.disabled = false;
+        }
+      });
+
+      $('#linterna').addEventListener('click', async () => {
+        if (!scanner) return;
+        try {
+          linternaEncendida = !linternaEncendida;
+          await scanner.applyVideoConstraints({ advanced: [{ torch: linternaEncendida }] });
+          $('#linterna').classList.toggle('encendido', linternaEncendida);
+        } catch (error) {
+          linternaEncendida = false;
+          $('#linterna').classList.remove('encendido');
+          $('#linterna').hidden = true;
+        }
+      });
+
+      /* ---------------------------------------------------------- validar */
+
+      function vibrar(patron) {
+        try { if (navigator.vibrate) navigator.vibrate(patron); } catch (e) { /* da igual */ }
+      }
+
+      function mostrarResultado(permitido, titulo, detalle) {
+        const caja = $('#resultado');
+        caja.className = `resultado ${permitido ? 'ok' : 'mal'}`;
+        $('#resIcono').textContent = permitido ? '✓' : '✕';
+        $('#resTitulo').textContent = titulo;
+        $('#resDetalle').textContent = detalle;
+        caja.hidden = false;
+        vibrar(permitido ? 120 : [90, 70, 90, 70, 90]);
+      }
+
+      function ocultarResultado() {
+        $('#resultado').hidden = true;
+        procesando = false;
+      }
+
+      $('#resultado').addEventListener('click', ocultarResultado);
+
+      async function alLeer(texto) {
+        if (procesando) return;
+        procesando = true;
+
+        try {
+          const response = await authFetch('/api/validar-ticket', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticketId: String(texto).trim() })
+          });
+          const data = await response.json();
+
+          if (data.permitido) {
+            const partes = [data.nombre, data.tipoEntrada].filter(Boolean).join(' · ');
+            mostrarResultado(true, 'Adelante', partes || 'Entrada válida');
+          } else {
+            mostrarResultado(false, 'Denegado', data.mensaje || 'Entrada no válida');
+          }
+        } catch (error) {
+          mostrarResultado(false, 'Sin conexión', 'No se pudo validar. Revisá la señal e intentá de nuevo.');
+        }
+
+        // Se cierra solo, pero se puede tocar para seguir antes.
+        window.setTimeout(() => {
+          if (!$('#resultado').hidden) ocultarResultado();
+        }, 2600);
+      }
+
+      /* -------------------------------------------------------- pantalla */
+
+      async function mantenerDespierta() {
+        try {
+          if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+          }
+        } catch (error) { /* sin wake lock se sigue pudiendo escanear */ }
+      }
+
+      document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && !wakeLock) mantenerDespierta();
+      });
+
+      /* ---------------------------------------------------------- arranque */
+
+      (async () => {
+        try {
+          if (typeof Html5Qrcode === 'undefined') {
+            mostrarAviso('No cargó el lector', 'No se pudo cargar la librería del escáner. Revisá la conexión y recargá la página.',
+              { texto: 'Recargar', accion: () => window.location.reload() });
+            return;
+          }
+
+          if (!(await iniciarSesion())) return;
+
+          try {
+            camaras = await Html5Qrcode.getCameras();
+          } catch (error) {
+            camaras = [];
+          }
+
+          $('#voltear').hidden = false;
+          await arrancarCamara();
+          mantenerDespierta();
+        } catch (error) {
+          console.error('No se pudo arrancar el escáner:', error);
+          mostrarAviso('Sin acceso a la cámara',
+            'El navegador no dio permiso, o la cámara está ocupada por otra aplicación. Revisá los permisos del sitio y volvé a intentar.',
+            { texto: 'Reintentar', accion: () => window.location.reload() });
+        }
+      })();
+    </script>
+  </body>
+</html>

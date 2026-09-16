@@ -151,3 +151,9 @@ test('POST /api/admin/probar-correo returns 503 with a token when unconfigured',
     .send({ correo: 'a@b.com' });
   assert.equal(res.status, 503);
 });
+
+test('GET /scanner serves the full-screen scanner page', async () => {
+  const res = await request(app).get('/scanner');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /html/);
+});

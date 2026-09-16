@@ -598,6 +598,13 @@ app.get("/login", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
+// Escáner a pantalla completa, pensado para el teléfono del staff en la
+// puerta. El panel sigue teniendo el suyo embebido para trabajar desde un
+// computador.
+app.get("/scanner", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "scanner.html"));
+});
+
 app.get("/scanner-dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "scanner-dashboard.html"));
 });

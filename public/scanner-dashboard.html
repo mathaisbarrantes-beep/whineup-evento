@@ -115,6 +115,8 @@
       .qr-card .id{font-size:9px;color:var(--text-faint);margin:6px 0 0;word-break:break-all;}
 
       .acciones{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+      .scan-acciones{display:flex;gap:8px;flex-wrap:wrap;}
+      .scan-acciones .btn-line{display:inline-flex;align-items:center;text-decoration:none;}
       .nota-admin{font-size:11px;color:var(--text-faint);line-height:1.5;margin:12px 0 0;}
       #eventoForm input[type="datetime-local"]{color-scheme:dark;}
 
@@ -151,7 +153,10 @@
         </div>
         <div class="scan-footer">
           <p id="cameraState">Preparando cámara…</p>
-          <button type="button" class="btn-line" id="restartScan">Reiniciar escáner</button>
+          <div class="scan-acciones">
+            <a class="btn-line" href="/scanner">Abrir a pantalla completa</a>
+            <button type="button" class="btn-line" id="restartScan">Reiniciar</button>
+          </div>
         </div>
 
         <div class="result" id="resultPanel" hidden>
@@ -534,12 +539,13 @@
             return;
           }
 
-          scanner.start(
-            devices[0].id,
-            { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1, disableFlip: false },
-            onScanSuccess,
-            () => {}
-          ).then(() => {
+          // facingMode antes que un id concreto: en un teléfono devices[0]
+          // suele ser la cámara frontal, que no sirve para escanear en la
+          // puerta. Si esa orientación no existe, se cae al primer dispositivo.
+          const ajustes = { fps: 10, qrbox: { width: 260, height: 260 }, aspectRatio: 1, disableFlip: false };
+          scanner.start({ facingMode: "environment" }, ajustes, onScanSuccess, () => {})
+            .catch(() => scanner.start(devices[0].id, ajustes, onScanSuccess, () => {}))
+            .then(() => {
             $('#cameraState').textContent = 'Cámara activa';
             $('#cameraPerm').textContent = 'Concedidos';
             $('#scanGuide').hidden = true;

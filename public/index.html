@@ -673,6 +673,7 @@
             });
           });
           $('#cerrarSesion').addEventListener('click', async () => {
+            if (!window.confirm('¿Estás seguro de que deseas cerrar sesión?')) return;
             await supabaseClient.auth.signOut();
           });
 

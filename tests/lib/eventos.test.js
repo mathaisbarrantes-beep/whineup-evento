@@ -1,7 +1,7 @@
 // tests/lib/eventos.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createEventosRepo } = require('../../lib/eventos');
+const { createEventosRepo, cortesiaVigente, cortesiaDesdeFormulario } = require('../../lib/eventos');
 
 test('listarPublicos rejects with NO_CONFIGURADO when Supabase is not configured', async () => {
   const repo = createEventosRepo({ supabase: null, supabaseConfigured: false });
@@ -22,7 +22,7 @@ test('mapEventoRow maps snake_case columns to the camelCase shape the frontend e
   assert.deepEqual(mapEventoRow(row), {
     id: 'e1', nombre: 'HALLOWEEN PARTY', fecha: '2026-10-31', lugar: 'WhineUp CR',
     precio: 45000, categoria: 'General', descripcion: 'desc', cupoMaximo: null, activo: true,
-    bannerUrl: null
+    bannerUrl: null, cortesia: null, cortesiaHasta: null
   });
 });
 
@@ -232,4 +232,69 @@ test('quitarBanner on an event without banner does not touch storage', async () 
   const fake = fakeEventos();
   await repoCon(fake).quitarBanner(ID);
   assert.deepEqual(fake.registro.borrados, []);
+});
+
+/* -------------------------------------------------------------- cortesías */
+
+const LIMITE = '2026-09-22T05:59:00.000Z';
+const EVENTO_CON_CORTESIA = { cortesia: '1 shot gratis', cortesiaHasta: LIMITE };
+
+// El límite es inclusivo: quien manda el comprobante en el último minuto la gana.
+test('cortesiaVigente returns the courtesy up to and including the deadline', () => {
+  assert.equal(cortesiaVigente(EVENTO_CON_CORTESIA, new Date('2026-09-22T05:58:59.999Z')), '1 shot gratis');
+  assert.equal(cortesiaVigente(EVENTO_CON_CORTESIA, new Date(LIMITE)), '1 shot gratis');
+  assert.equal(cortesiaVigente(EVENTO_CON_CORTESIA, new Date('2026-09-22T05:59:00.001Z')), null);
+});
+
+test('cortesiaVigente returns null without a complete, valid courtesy', () => {
+  const ahora = new Date('2026-09-20T00:00:00Z');
+  assert.equal(cortesiaVigente({ cortesia: null, cortesiaHasta: null }, ahora), null);
+  assert.equal(cortesiaVigente({ cortesia: '1 shot gratis', cortesiaHasta: null }, ahora), null);
+  assert.equal(cortesiaVigente({ cortesia: '1 shot gratis', cortesiaHasta: 'mañana' }, ahora), null);
+  assert.equal(cortesiaVigente(null, ahora), null);
+});
+
+test('cortesiaDesdeFormulario clears the courtesy when both fields are empty', () => {
+  assert.deepEqual(cortesiaDesdeFormulario('  ', ''), { cortesia: null, cortesia_hasta: null });
+  assert.deepEqual(cortesiaDesdeFormulario(undefined, null), { cortesia: null, cortesia_hasta: null });
+});
+
+test('cortesiaDesdeFormulario trims the text and normalizes the deadline to ISO', () => {
+  assert.deepEqual(
+    cortesiaDesdeFormulario('  1 shot gratis ', '2026-09-22T05:59:00Z'),
+    { cortesia: '1 shot gratis', cortesia_hasta: '2026-09-22T05:59:00.000Z' }
+  );
+});
+
+test('cortesiaDesdeFormulario rejects half a courtesy, long text and bad dates', () => {
+  assert.throws(() => cortesiaDesdeFormulario('1 shot gratis', ''), (err) => err.error === 'CORTESIA_INCOMPLETA');
+  assert.throws(() => cortesiaDesdeFormulario('', '2026-09-22T05:59:00Z'), (err) => err.error === 'CORTESIA_INCOMPLETA');
+  assert.throws(() => cortesiaDesdeFormulario('x'.repeat(61), '2026-09-22T05:59:00Z'), (err) => err.error === 'CORTESIA_LARGA');
+  assert.throws(() => cortesiaDesdeFormulario('1 shot gratis', 'el 22'), (err) => err.error === 'CORTESIA_FECHA');
+  assert.deepEqual(cortesiaDesdeFormulario('x'.repeat(60), LIMITE).cortesia, 'x'.repeat(60));
+});
+
+function filaConCortesia(hasta) {
+  return filaEvento({ cortesia: '1 shot gratis', cortesia_hasta: hasta });
+}
+
+// La portada no debe prometer una cortesía vencida, aunque el reloj del
+// visitante esté mal: la decide la hora del servidor.
+test('listarPublicos hides an expired courtesy and keeps an active one', async () => {
+  const reloj = () => new Date('2026-09-22T06:00:00Z');
+  const vencida = createEventosRepo({ supabase: fakeEventos({ filas: [filaConCortesia(LIMITE)] }).supabase, supabaseConfigured: true, reloj });
+  const [ev1] = await vencida.listarPublicos();
+  assert.deepEqual({ cortesia: ev1.cortesia, cortesiaHasta: ev1.cortesiaHasta }, { cortesia: null, cortesiaHasta: null });
+
+  const vigente = createEventosRepo({ supabase: fakeEventos({ filas: [filaConCortesia('2026-09-30T05:59:00+00:00')] }).supabase, supabaseConfigured: true, reloj });
+  const [ev2] = await vigente.listarPublicos();
+  assert.deepEqual({ cortesia: ev2.cortesia, cortesiaHasta: ev2.cortesiaHasta }, { cortesia: '1 shot gratis', cortesiaHasta: '2026-09-30T05:59:00+00:00' });
+});
+
+// El panel y la creación de entradas necesitan el valor real, vencido o no.
+test('obtenerPorId keeps an expired courtesy', async () => {
+  const reloj = () => new Date('2027-01-01T00:00:00Z');
+  const repo = createEventosRepo({ supabase: fakeEventos({ filas: [filaConCortesia(LIMITE)] }).supabase, supabaseConfigured: true, reloj });
+  const evento = await repo.obtenerPorId(ID);
+  assert.deepEqual({ cortesia: evento.cortesia, cortesiaHasta: evento.cortesiaHasta }, { cortesia: '1 shot gratis', cortesiaHasta: LIMITE });
 });

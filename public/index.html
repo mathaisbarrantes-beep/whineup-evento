@@ -111,6 +111,8 @@
       .modal-banner{margin-bottom:14px;}
       .hero-banner{margin-bottom:20px;}
       .card-banner{border-radius:14px;margin-bottom:16px;}
+      .cortesia-linea{display:flex;align-items:flex-start;gap:8px;margin-top:14px;border:1px solid var(--border-strong);border-radius:12px;padding:10px 12px;font-size:13px;font-weight:600;line-height:1.4;color:var(--white);background:oklch(100% 0 0 / 6%);}
+      .cortesia-linea svg{flex-shrink:0;margin-top:1px;}
       .event-mini{display:flex;align-items:center;gap:14px;border:1px solid var(--border);border-radius:16px;padding:14px;background:oklch(11% 0 0);}
       .event-mini-badge{width:44px;height:44px;border-radius:12px;background:var(--surface-3);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
       .event-mini b{font-size:15px;display:block;}
@@ -220,6 +222,7 @@
                   <span id="heroLugar"></span>
                 </div>
               </div>
+              <div class="cortesia-linea" id="heroCortesia" hidden></div>
               <div class="hero-card-price">
                 <span style="font-size:13px;color:var(--text-dim);">Entrada <span id="heroCategoria"></span></span>
                 <b id="heroPrecio"></b>
@@ -287,6 +290,7 @@
                 <span id="miniMeta"></span>
               </div>
             </div>
+            <div class="cortesia-linea" id="modalCortesia" hidden></div>
 
             <div id="paso1" hidden>
               <h3>Iniciá sesión</h3>
@@ -351,6 +355,7 @@
                 </div>
                 <h3>Solicitud recibida</h3>
                 <p class="modal-copy" id="exitoCopy"></p>
+                <p class="modal-copy" id="okCortesia" hidden></p>
                 <span class="pending-badge">● Pendiente de confirmación</span>
 
                 <div class="ticket-preview">
@@ -406,6 +411,30 @@
       const ICONO_FECHA = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
       const ICONO_LUGAR = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.3"/></svg>';
 
+      const ICONO_REGALO = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v9H5v-9M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg>';
+
+      function formatFechaHora(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return new Intl.DateTimeFormat('es-CR', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }).format(date);
+      }
+
+      // El servidor solo manda cortesías vigentes, así que aquí no se mira la fecha.
+      function textoCortesia(ev) {
+        return ev && ev.cortesia ? `Comprando antes del ${formatFechaHora(ev.cortesiaHasta)}: ${ev.cortesia}` : '';
+      }
+
+      function lineaCortesia(ev) {
+        const texto = textoCortesia(ev);
+        return texto ? `<div class="cortesia-linea">${ICONO_REGALO}<span>${esc(texto)}</span></div>` : '';
+      }
+
+      function pintarCortesia(el, ev) {
+        const texto = textoCortesia(ev);
+        el.innerHTML = texto ? `${ICONO_REGALO}<span>${esc(texto)}</span>` : '';
+        el.hidden = !texto;
+      }
+
       let supabaseClient = null;
       let currentSession = null;
       let selectedEvent = null;
@@ -451,6 +480,7 @@
                 <div>${ICONO_FECHA}<span>${esc(formatFecha(ev.fecha))}</span></div>
                 <div>${ICONO_LUGAR}<span>${esc(ev.lugar)}</span></div>
               </div>
+              ${lineaCortesia(ev)}
               <p>${esc(ev.descripcion || '')}</p>
               <button type="button" class="card-btn" data-evento="${esc(ev.id)}">
                 Seleccionar entrada
@@ -469,6 +499,7 @@
 
         const destacado = lista[0];
         ponerImagen($('#heroBanner'), destacado.bannerUrl, destacado.nombre);
+        pintarCortesia($('#heroCortesia'), destacado);
         $('#heroNombre').textContent = destacado.nombre;
         $('#heroFecha').textContent = formatFechaCorta(destacado.fecha);
         $('#heroLugar').textContent = destacado.lugar;
@@ -529,6 +560,7 @@
       function abrirModal(evento) {
         selectedEvent = evento;
         ponerImagen($('#modalBanner'), evento.bannerUrl, evento.nombre);
+        pintarCortesia($('#modalCortesia'), evento);
         $('#miniNombre').textContent = evento.nombre;
         $('#miniMeta').textContent = `${formatFechaCorta(evento.fecha)} · ${evento.lugar}`;
         // El tipo de entrada es la categoría del evento: la base guarda un solo
@@ -671,6 +703,13 @@
           // El mensaje lo redacta el servidor: la solicitud se recibió y el QR
           // sigue inactivo hasta que un admin confirme el pago.
           $('#exitoCopy').textContent = data.mensaje || 'Recibimos tu comprobante. Tu QR se activa cuando confirmemos el pago — te avisamos por correo.';
+          // Sale de lo que quedó guardado en la entrada, no de lo que mostraba
+          // el modal: el comprobante pudo llegar después del límite.
+          const cortesiaGanada = data.ticket && data.ticket.cortesia;
+          $('#okCortesia').textContent = cortesiaGanada
+            ? `Tu entrada incluye: ${cortesiaGanada}. La reclamás en la barra con este mismo QR, después de entrar.`
+            : '';
+          $('#okCortesia').hidden = !cortesiaGanada;
           $('#okEvento').textContent = selectedEvent.nombre;
           $('#okTitular').textContent = nombre;
           $('#okTipo').textContent = selectedEvent.categoria;

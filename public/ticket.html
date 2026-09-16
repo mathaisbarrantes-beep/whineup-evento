@@ -114,6 +114,7 @@
         <div class="details">
           <div class="detail-row"><span>Titular</span><b id="buyerName">—</b></div>
           <div class="detail-row"><span>Tipo de entrada</span><b id="ticketType">—</b></div>
+          <div class="detail-row" id="cortesiaFila" hidden><span>Cortesía</span><b id="cortesiaTexto">—</b></div>
           <div class="detail-row"><span>Total</span><b id="ticketPrice">—</b></div>
           <div class="detail-row"><span>Emitida</span><b id="issuedAt">—</b></div>
           <p class="ticket-id" id="ticketId"></p>
@@ -179,6 +180,10 @@
           $('#eventPlace').textContent = t.eventoLugar || 'Lugar por confirmar';
           $('#buyerName').textContent = t.nombre || '—';
           $('#ticketType').textContent = t.tipoEntrada || 'General';
+          $('#cortesiaFila').hidden = !t.cortesia;
+          $('#cortesiaTexto').textContent = t.cortesia
+            ? `${t.cortesia} · ${t.cortesiaEntregada ? 'Entregada' : 'Por reclamar en la barra'}`
+            : '—';
           $('#ticketPrice').textContent = formatCRC(t.precio);
           $('#issuedAt').textContent = formatFecha(t.creadoEn, false);
           $('#ticketId').textContent = `ID · ${t.id}`;

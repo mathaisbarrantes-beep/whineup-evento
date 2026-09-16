@@ -67,9 +67,18 @@ create table public.eventos (
   activo boolean not null default true,
   -- Ruta dentro del bucket "eventos" (abajo). La URL pública la arma el servidor.
   banner_path text,
+  -- Cortesía de preventa: texto y fecha límite van juntos o no van.
+  cortesia text,
+  cortesia_hasta timestamptz,
   creado_por uuid references auth.users(id),
   creado_en timestamptz not null default now()
 );
+
+alter table public.eventos
+  add constraint eventos_cortesia_completa
+    check ((cortesia is null) = (cortesia_hasta is null)),
+  add constraint eventos_cortesia_largo
+    check (cortesia is null or char_length(cortesia) between 1 and 60);
 
 alter table public.eventos enable row level security;
 
@@ -108,12 +117,21 @@ create table public.entradas (
   pago_confirmado_en timestamptz,
   ingresado_en timestamptz,
   generado_por uuid references auth.users(id),
+  -- Copia fija de la cortesía que le tocó al crearse; cambiar el evento
+  -- después no altera lo que ya se prometió.
+  cortesia text,
+  cortesia_entregada_en timestamptz,
+  cortesia_entregada_por uuid references auth.users(id),
   creado_en timestamptz not null default now()
 );
 
 create index entradas_usuario_id_idx on public.entradas(usuario_id);
 create index entradas_evento_id_idx on public.entradas(evento_id);
 create index entradas_estado_idx on public.entradas(estado);
+
+alter table public.entradas
+  add constraint entradas_cortesia_entregada
+    check (cortesia_entregada_en is null or cortesia is not null);
 
 alter table public.entradas enable row level security;
 
@@ -183,6 +201,65 @@ $$;
 -- el staff. Solo el servidor (service_role) la llama.
 revoke all on function public.validar_entrada(uuid) from public, anon, authenticated;
 grant execute on function public.validar_entrada(uuid) to service_role;
+
+-- ========== CANJEAR CORTESÍA (atómico) ==========
+
+-- Canje atómico, igual que validar_entrada: "for update" hace esperar al
+-- segundo escaneo simultáneo, que ya ve la cortesía entregada. Toda columna
+-- va con su tabla: las columnas de salida (nombre, evento, cortesia,
+-- entregada_en) son variables aquí dentro y un nombre suelto da 42702.
+create or replace function public.canjear_cortesia(p_entrada_id uuid, p_staff_id uuid)
+returns table (
+  permitido boolean,
+  motivo text,
+  nombre text,
+  evento text,
+  cortesia text,
+  entregada_en timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_entrada public.entradas%rowtype;
+  v_evento text;
+  v_ahora timestamptz := now();
+begin
+  select * into v_entrada from public.entradas as e where e.id = p_entrada_id for update;
+
+  if not found then
+    return query select false, 'NO_ENCONTRADA'::text, null::text, null::text, null::text, null::timestamptz;
+    return;
+  end if;
+
+  select ev.nombre into v_evento from public.eventos as ev where ev.id = v_entrada.evento_id;
+
+  if v_entrada.cortesia is null then
+    return query select false, 'SIN_CORTESIA'::text, v_entrada.nombre, v_evento, null::text, null::timestamptz;
+    return;
+  end if;
+
+  if v_entrada.estado <> 'INGRESADO' then
+    return query select false, 'NO_INGRESO'::text, v_entrada.nombre, v_evento, v_entrada.cortesia, null::timestamptz;
+    return;
+  end if;
+
+  if v_entrada.cortesia_entregada_en is not null then
+    return query select false, 'YA_ENTREGADA'::text, v_entrada.nombre, v_evento, v_entrada.cortesia, v_entrada.cortesia_entregada_en;
+    return;
+  end if;
+
+  update public.entradas as e
+    set cortesia_entregada_en = v_ahora, cortesia_entregada_por = p_staff_id
+    where e.id = p_entrada_id;
+
+  return query select true, 'ENTREGAR'::text, v_entrada.nombre, v_evento, v_entrada.cortesia, v_ahora;
+end;
+$$;
+
+revoke all on function public.canjear_cortesia(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.canjear_cortesia(uuid, uuid) to service_role;
 
 -- ========== PRIMER EVENTO (ejemplo, comentado a propósito) ==========
 --

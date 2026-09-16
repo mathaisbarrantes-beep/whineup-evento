@@ -214,6 +214,46 @@ app.delete("/api/admin/eventos/:id", requireRole("admin"), async (req, res) => {
   }
 });
 
+const ERRORES_BANNER = {
+  EVENTO_NO_ENCONTRADO: [404, "Evento no encontrado."],
+  BANNER_VACIO: [400, "Elegí una imagen para el banner."],
+  BANNER_TIPO: [400, "El banner tiene que ser una imagen JPG, PNG o WebP."],
+  BANNER_MUY_GRANDE: [413, "La imagen pesa más de 3 MB."]
+};
+
+function responderBanner(res, error, mensaje) {
+  const conocido = error && ERRORES_BANNER[error.error];
+  if (conocido) {
+    return res.status(conocido[0]).json({ ok: false, mensaje: conocido[1] });
+  }
+  console.error(mensaje, error);
+  return res.status(500).json({ ok: false, mensaje });
+}
+
+// La imagen llega como cuerpo crudo: sin otra dependencia para formularios, y
+// por debajo de los 4,5 MB que acepta una función de Vercel. El tope real de
+// 3 MB lo pone el repo, que así responde en JSON; este solo corta lo absurdo.
+// La sesión se revisa antes de leer el cuerpo.
+const leerImagen = express.raw({ type: ["image/jpeg", "image/png", "image/webp"], limit: "4mb" });
+
+app.put("/api/admin/eventos/:id/banner", requireRole("admin"), leerImagen, async (req, res) => {
+  try {
+    const evento = await eventosRepo.ponerBanner(String(req.params.id || ""), req.body);
+    res.json({ ok: true, evento, mensaje: "Banner guardado." });
+  } catch (error) {
+    responderBanner(res, error, "No se pudo guardar el banner.");
+  }
+});
+
+app.delete("/api/admin/eventos/:id/banner", requireRole("admin"), async (req, res) => {
+  try {
+    const evento = await eventosRepo.quitarBanner(String(req.params.id || ""));
+    res.json({ ok: true, evento, mensaje: "Banner quitado." });
+  } catch (error) {
+    responderBanner(res, error, "No se pudo quitar el banner.");
+  }
+});
+
 // El personal lo gestiona solo un admin. Los eventos y el personal son las
 // dos cosas que un staff no puede tocar: todo lo demas de la operacion si.
 app.get("/api/admin/usuarios", requireRole("admin"), async (req, res) => {

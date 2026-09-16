@@ -119,6 +119,8 @@
       .scan-acciones{display:flex;gap:8px;flex-wrap:wrap;}
       .scan-acciones .btn-line{display:inline-flex;align-items:center;text-decoration:none;}
       .nota-admin{font-size:11px;color:var(--text-faint);line-height:1.5;margin:12px 0 0;}
+      .banner-mini{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px;margin-bottom:12px;background:oklch(14% 0 0);}
+      label.approve{display:inline-flex;align-items:center;cursor:pointer;}
       .enlace-caja{margin-top:12px;border:1px solid var(--border-strong);border-radius:12px;padding:12px;}
       .enlace-caja input{width:100%;background:oklch(11% 0 0);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-size:12px;font-family:ui-monospace,Consolas,monospace;outline:none;}
       #eventoForm input[type="datetime-local"]{color-scheme:dark;}
@@ -241,6 +243,7 @@
             <button type="button" class="refresh form-full" id="eventoCancelar" hidden>Cancelar edición</button>
           </form>
           <div class="aviso" id="eventoResult" hidden role="status"></div>
+          <p class="nota-admin">El banner sale arriba de la compra de cada evento. JPG, PNG o WebP de hasta 3 MB; se ve mejor en 16:9 (1600 × 900).</p>
         </div>
 
         <div id="personalSection" hidden>
@@ -322,7 +325,7 @@
           const response = await fetch('/api/config');
           const config = await response.json();
           if (!config.supabaseUrl || !config.supabaseAnonKey) {
-            window.location.href = '/login';
+            window.location.href = '/login#staff';
             return false;
           }
           sinpeDestino = config.paymentPhone || null;
@@ -362,12 +365,12 @@
       /* -------------------------------------------------------- sesión */
 
       async function checkSession() {
-        if (!currentSession) { window.location.href = '/login'; return; }
+        if (!currentSession) { window.location.href = '/login#staff'; return; }
 
         try {
           const response = await authFetch('/api/session-status');
           const data = await response.json();
-          if (!data.authenticated) { window.location.href = '/login'; return; }
+          if (!data.authenticated) { window.location.href = '/login#staff'; return; }
 
           $('#userLabel').textContent = `${data.user.name} · ${data.user.role}`;
           $('#userLabel').hidden = false;
@@ -396,7 +399,7 @@
           }
         } catch (error) {
           console.error('Error verificando sesión:', error);
-          window.location.href = '/login';
+          window.location.href = '/login#staff';
         }
       }
 
@@ -699,6 +702,7 @@
 
         caja.innerHTML = lista.map((ev) => `
           <div class="row-card">
+            ${ev.bannerUrl ? `<img class="banner-mini" src="${esc(ev.bannerUrl)}" alt="Banner de ${esc(ev.nombre)}" />` : ''}
             <div class="row-top">
               <div>
                 <b>${esc(ev.nombre)}</b>
@@ -710,6 +714,11 @@
             <div class="acciones">
               <button type="button" class="approve" data-editar="${esc(ev.id)}">Editar</button>
               <button type="button" class="approve" data-activo="${esc(ev.id)}" data-valor="${ev.activo ? 'false' : 'true'}">${ev.activo ? 'Ocultar' : 'Reactivar'}</button>
+              <label class="approve">
+                ${ev.bannerUrl ? 'Cambiar banner' : 'Subir banner'}
+                <input type="file" accept="image/jpeg,image/png,image/webp" data-banner="${esc(ev.id)}" hidden />
+              </label>
+              ${ev.bannerUrl ? `<button type="button" class="approve" data-quitar-banner="${esc(ev.id)}">Quitar banner</button>` : ''}
             </div>
           </div>
         `).join('');
@@ -720,6 +729,59 @@
         caja.querySelectorAll('[data-activo]').forEach((b) => {
           b.addEventListener('click', () => cambiarActivo(b.dataset.activo, b.dataset.valor === 'true', b));
         });
+        caja.querySelectorAll('[data-banner]').forEach((input) => {
+          input.addEventListener('change', () => subirBanner(input.dataset.banner, input));
+        });
+        caja.querySelectorAll('[data-quitar-banner]').forEach((b) => {
+          b.addEventListener('click', () => quitarBanner(b.dataset.quitarBanner, b));
+        });
+      }
+
+      const TIPOS_BANNER = ['image/jpeg', 'image/png', 'image/webp'];
+      const MAX_BANNER = 3 * 1024 * 1024;
+
+      // Se revisa aquí para no mandar 3 MB solo para oír que no. El servidor
+      // vuelve a revisarlo, y además mira el contenido real del archivo.
+      async function subirBanner(id, input) {
+        const archivo = input.files && input.files[0];
+        input.value = '';
+        if (!archivo) return;
+        if (!TIPOS_BANNER.includes(archivo.type)) {
+          avisar($('#eventoResult'), 'El banner tiene que ser una imagen JPG, PNG o WebP.', false);
+          return;
+        }
+        if (archivo.size > MAX_BANNER) {
+          avisar($('#eventoResult'), 'La imagen pesa más de 3 MB. Exportala más chica: 1600 × 900 alcanza.', false);
+          return;
+        }
+
+        avisar($('#eventoResult'), 'Subiendo banner…', true);
+        try {
+          const response = await authFetch(`/api/admin/eventos/${encodeURIComponent(id)}/banner`, {
+            method: 'PUT',
+            headers: { 'Content-Type': archivo.type },
+            body: archivo
+          });
+          const data = await response.json();
+          avisar($('#eventoResult'), data.mensaje || 'No se pudo guardar el banner.', response.ok);
+          if (response.ok) loadEventos();
+        } catch (error) {
+          avisar($('#eventoResult'), 'No se pudo conectar con el servidor.', false);
+        }
+      }
+
+      async function quitarBanner(id, boton) {
+        boton.disabled = true;
+        try {
+          const response = await authFetch(`/api/admin/eventos/${encodeURIComponent(id)}/banner`, { method: 'DELETE' });
+          const data = await response.json();
+          avisar($('#eventoResult'), data.mensaje || 'No se pudo quitar el banner.', response.ok);
+          if (response.ok) loadEventos();
+        } catch (error) {
+          avisar($('#eventoResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          boton.disabled = false;
+        }
       }
 
       async function loadEventos() {
@@ -979,7 +1041,7 @@
         try {
           if (supabaseClient) await supabaseClient.auth.signOut();
         } finally {
-          window.location.href = '/login';
+          window.location.href = '/login#staff';
         }
       });
 

@@ -211,7 +211,7 @@
         const res = await fetch('/api/config');
         const config = await res.json();
         if (!config.supabaseUrl || !config.supabaseAnonKey) {
-          window.location.href = '/login';
+          window.location.href = '/login#staff';
           return false;
         }
 
@@ -222,11 +222,11 @@
 
         const { data: { session } } = await supabaseClient.auth.getSession();
         currentSession = session;
-        if (!currentSession) { window.location.href = '/login'; return false; }
+        if (!currentSession) { window.location.href = '/login#staff'; return false; }
 
         const estadoSesion = await authFetch('/api/session-status').then((r) => r.json());
         if (!estadoSesion.authenticated || !['staff', 'admin'].includes(estadoSesion.user?.role)) {
-          window.location.href = '/login';
+          window.location.href = '/login#staff';
           return false;
         }
 

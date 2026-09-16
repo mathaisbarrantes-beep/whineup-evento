@@ -65,6 +65,8 @@ create table public.eventos (
   descripcion text,
   cupo_maximo integer check (cupo_maximo is null or cupo_maximo > 0),
   activo boolean not null default true,
+  -- Ruta dentro del bucket "eventos" (abajo). La URL pública la arma el servidor.
+  banner_path text,
   creado_por uuid references auth.users(id),
   creado_en timestamptz not null default now()
 );
@@ -76,6 +78,16 @@ create policy "eventos_lectura_publica" on public.eventos
 
 create policy "eventos_admin_escritura" on public.eventos
   for all using (public.rol_actual() = 'admin') with check (public.rol_actual() = 'admin');
+
+-- ========== BANNERS DE EVENTOS (Storage) ==========
+--
+-- Público porque la portada los muestra sin sesión. No hay políticas sobre
+-- storage.objects a propósito: sin ellas nadie puede subir, borrar ni listar
+-- desde el navegador, y el servidor lo hace con la service role key. Los
+-- límites repiten los del servidor como segunda barrera.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('eventos', 'eventos', true, 3145728, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do nothing;
 
 -- ========== ENTRADAS ==========
 

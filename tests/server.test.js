@@ -120,6 +120,30 @@ test('GET /api/admin/eventos returns 401 without a token', async () => {
   assert.equal(res.status, 401);
 });
 
+test('PUT /api/admin/eventos/:id/banner returns 401 without a token', async () => {
+  const res = await request(app)
+    .put('/api/admin/eventos/0f8c1d2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f/banner')
+    .set('Content-Type', 'image/png')
+    .send(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  assert.equal(res.status, 401);
+  assert.equal(res.body.ok, false);
+});
+
+test('PUT /api/admin/eventos/:id/banner returns 503 with a token when unconfigured', async () => {
+  const res = await request(app)
+    .put('/api/admin/eventos/0f8c1d2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f/banner')
+    .set('Authorization', 'Bearer fake')
+    .set('Content-Type', 'image/png')
+    .send(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+  assert.equal(res.status, 503);
+});
+
+test('DELETE /api/admin/eventos/:id/banner returns 401 without a token', async () => {
+  const res = await request(app).delete('/api/admin/eventos/0f8c1d2e-3a4b-4c5d-8e6f-7a8b9c0d1e2f/banner');
+  assert.equal(res.status, 401);
+  assert.equal(res.body.ok, false);
+});
+
 test('POST /api/admin/usuarios/invitar returns 401 without a token', async () => {
   const res = await request(app).post('/api/admin/usuarios/invitar').send({ correo: 'a@b.com' });
   assert.equal(res.status, 401);

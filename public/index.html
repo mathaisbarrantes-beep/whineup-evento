@@ -53,7 +53,7 @@
       .btn-primary:hover{background:oklch(90% 0 0);}
       .btn-ghost{background:transparent;border:1px solid var(--border-strong);color:var(--text);border-radius:999px;padding:15px 28px;font-size:15px;font-weight:600;display:inline-flex;align-items:center;}
       .btn-ghost:hover{border-color:var(--white);}
-      .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:36px;max-width:440px;}
+      .stat-row{display:grid;grid-template-columns:minmax(0,180px);gap:12px;margin-top:36px;}
       .stat{border:1px solid var(--border);border-radius:16px;padding:14px 16px;background:var(--surface-1);}
       .stat b{display:block;font-family:'Anton',sans-serif;font-size:22px;font-variant-numeric:tabular-nums;}
       .stat span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);}
@@ -161,7 +161,7 @@
         .header-inner,.hero,.events,.faq{padding-left:20px;padding-right:20px;}
         .hero{padding-top:56px;}
         .faq-inner{padding:26px 20px;}
-        .stat-row{grid-template-columns:1fr;max-width:none;}
+        .stat-row{grid-template-columns:minmax(0,180px);}
         .modal-overlay{padding:12px;}
       }
       @media (prefers-reduced-motion:reduce){*{transition:none !important;}}
@@ -192,7 +192,7 @@
           <div>
             <span class="eyebrow">Entradas oficiales</span>
             <h1>Tu próxima<br />noche empieza<br />acá.</h1>
-            <p class="lede">Entradas digitales para los eventos de WhineUp CR. Elegí tu fiesta, pagá por SINPE Móvil y recibí tu QR por correo — sin filas, sin papel.</p>
+            <p class="lede">Entradas digitales para los eventos de WhineUp CR.</p>
             <div class="hero-actions">
               <button type="button" class="btn-primary" id="verEventos">
                 Ver eventos
@@ -202,8 +202,6 @@
             </div>
             <div class="stat-row">
               <div class="stat"><b id="statEventos">—</b><span>Eventos activos</span></div>
-              <div class="stat"><b id="statEntradas">—</b><span>Entradas emitidas</span></div>
-              <div class="stat"><b>1</b><span>Uso por QR</span></div>
             </div>
           </div>
 
@@ -525,18 +523,6 @@
         }
       }
 
-      async function cargarEstadisticas() {
-        try {
-          const res = await fetch('/api/estadisticas-publicas');
-          const data = await res.json();
-          if (res.ok && data.ok) {
-            $('#statEntradas').textContent = new Intl.NumberFormat('es-CR').format(Number(data.entradas || 0));
-          }
-        } catch (error) {
-          $('#statEntradas').textContent = '—';
-        }
-      }
-
       /* ------------------------------------------------------------ modal */
 
       function pintarPaso() {
@@ -756,7 +742,6 @@
 
       async function arrancar() {
         pintarPaso();
-        cargarEstadisticas();
         const [lista] = await Promise.all([cargarEventos(), initAuth()]);
         const pendiente = eventoPendiente && lista.find((ev) => ev.id === eventoPendiente);
         if (pendiente) abrirModal(pendiente);

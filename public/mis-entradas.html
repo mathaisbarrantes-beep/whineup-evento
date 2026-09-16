@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mis entradas | WhineUp</title>
+    <link rel="icon" href="/logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&display=swap" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <style>
+      :root{
+        --bg:oklch(9% 0 0);
+        --surface-1:oklch(14% 0 0);
+        --border:oklch(100% 0 0 / 12%);
+        --border-strong:oklch(100% 0 0 / 30%);
+        --text:oklch(97% 0 0);
+        --text-dim:oklch(74% 0 0);
+        --text-faint:oklch(52% 0 0);
+        --cortesia:oklch(72% .16 300);
+      }
+      *{box-sizing:border-box;}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;}
+      h1,h2{font-family:'Anton','Arial Narrow',sans-serif;font-weight:400;text-transform:uppercase;margin:0;}
+      button{font-family:inherit;cursor:pointer;}
+      a{text-decoration:none;color:inherit;}
+      [hidden]{display:none !important;}
+      :focus-visible{outline:2px solid #fff;outline-offset:2px;}
+
+      .screen{min-height:100vh;max-width:560px;margin:0 auto;padding:20px 16px 40px;}
+      .top{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+      .brand{display:flex;align-items:center;gap:10px;}
+      .brand img{width:30px;height:30px;border-radius:999px;object-fit:cover;}
+      .brand span{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-faint);}
+      .back{width:36px;height:36px;border-radius:999px;border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;background:transparent;color:var(--text);flex-shrink:0;}
+      .back:hover{border-color:#fff;}
+
+      .titulo{margin-top:32px;}
+      .titulo h1{font-size:40px;line-height:1;}
+      .titulo p{margin:10px 0 0;color:var(--text-dim);font-size:14px;word-break:break-word;}
+
+      .lista{list-style:none;margin:24px 0 0;padding:0;display:flex;flex-direction:column;gap:12px;}
+      .entrada{border:1px solid var(--border-strong);border-radius:20px;background:var(--surface-1);padding:18px;}
+      .entrada-cab{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+      .entrada h2{font-size:22px;line-height:1.1;}
+      .meta{margin:10px 0 0;font-size:13px;color:var(--text-dim);line-height:1.6;}
+      .cortesia{margin:10px 0 0;font-size:13px;color:var(--cortesia);}
+      .estado{flex-shrink:0;border-radius:999px;padding:5px 12px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;}
+      .estado-activa{background:#fff;color:#0a0a0a;}
+      .estado-pendiente{border:1px dashed var(--border-strong);color:var(--text-dim);}
+      .estado-usada,.estado-cancelada{border:1px solid var(--border);color:var(--text-faint);}
+      .ver{margin-top:14px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border-strong);border-radius:14px;padding:12px;font-size:13px;font-weight:600;}
+      .ver:hover{border-color:#fff;}
+
+      .vacio{margin-top:48px;text-align:center;color:var(--text-dim);font-size:15px;line-height:1.6;}
+      .vacio h2{font-size:26px;color:var(--text);margin-bottom:10px;}
+      .boton{margin-top:18px;display:inline-flex;align-items:center;gap:10px;background:#fff;color:#0a0a0a;border:none;border-radius:999px;padding:13px 24px;font-size:14px;font-weight:700;}
+      .boton:disabled{opacity:.5;cursor:default;}
+      .g-mark{width:20px;height:20px;border-radius:999px;background:#0a0a0a;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+      .salir{background:transparent;border:1px solid var(--border-strong);color:var(--text);border-radius:999px;padding:8px 14px;font-size:12px;font-weight:600;}
+    </style>
+  </head>
+  <body>
+    <div class="screen">
+      <div class="top">
+        <a href="/" class="brand" aria-label="Volver a eventos">
+          <img src="/logo.png" alt="WhineUp CR" />
+          <span>WhineUp CR</span>
+        </a>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" class="salir" id="salir" hidden>Salir</button>
+          <a href="/" class="back" aria-label="Volver a eventos">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="titulo">
+        <h1>Mis entradas</h1>
+        <p id="cuenta">Cargando…</p>
+      </div>
+
+      <ul class="lista" id="listaEntradas"></ul>
+
+      <div class="vacio" id="vacio" hidden>
+        <h2 id="vacioTitulo"></h2>
+        <p id="vacioTexto"></p>
+        <button type="button" class="boton" id="entrar" hidden><span class="g-mark">G</span>Continuar con Google</button>
+        <a href="/#events" class="boton" id="irEventos" hidden>Ver eventos</a>
+      </div>
+    </div>
+
+    <script>
+      const $ = (sel) => document.querySelector(sel);
+      let supabaseClient = null;
+
+      const ESTADOS = {
+        PENDIENTE_PAGO: { texto: 'Pago pendiente', clase: 'estado-pendiente' },
+        PENDIENTE: { texto: 'Lista para usar', clase: 'estado-activa' },
+        INGRESADO: { texto: 'Usada', clase: 'estado-usada' },
+        CANCELADO: { texto: 'Cancelada', clase: 'estado-cancelada' }
+      };
+
+      function formatFecha(value) {
+        if (!value) return 'Fecha por confirmar';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return new Intl.DateTimeFormat('es-CR', { dateStyle: 'long', timeStyle: 'short' }).format(date);
+      }
+
+      function mostrarVacio(titulo, texto, { entrar = false, eventos = false } = {}) {
+        $('#listaEntradas').innerHTML = '';
+        $('#vacioTitulo').textContent = titulo;
+        $('#vacioTexto').textContent = texto;
+        $('#entrar').hidden = !entrar;
+        $('#irEventos').hidden = !eventos;
+        $('#vacio').hidden = false;
+      }
+
+      function tarjeta(entrada) {
+        const estado = ESTADOS[entrada.estado] || { texto: entrada.estado, clase: 'estado-pendiente' };
+        const li = document.createElement('li');
+        li.className = 'entrada';
+
+        const cab = document.createElement('div');
+        cab.className = 'entrada-cab';
+        const nombre = document.createElement('h2');
+        nombre.textContent = entrada.evento || 'Evento';
+        const badge = document.createElement('span');
+        badge.className = `estado ${estado.clase}`;
+        badge.textContent = estado.texto;
+        cab.append(nombre, badge);
+
+        const meta = document.createElement('p');
+        meta.className = 'meta';
+        meta.append(formatFecha(entrada.eventoFecha));
+        meta.append(document.createElement('br'));
+        meta.append(`${entrada.eventoLugar || 'Lugar por confirmar'} · ${entrada.tipoEntrada || 'General'}`);
+        li.append(cab, meta);
+
+        if (entrada.cortesia) {
+          const cortesia = document.createElement('p');
+          cortesia.className = 'cortesia';
+          cortesia.textContent = `Cortesía: ${entrada.cortesia} · ${entrada.cortesiaEntregadaEn ? 'Entregada' : 'Por reclamar en la barra'}`;
+          li.append(cortesia);
+        }
+
+        const ver = document.createElement('a');
+        ver.className = 'ver';
+        ver.href = `/ticket?ticketId=${encodeURIComponent(entrada.id)}`;
+        ver.textContent = 'Ver QR';
+        li.append(ver);
+        return li;
+      }
+
+      async function cargarEntradas(session) {
+        $('#vacio').hidden = true;
+        $('#salir').hidden = false;
+        $('#cuenta').textContent = session.user?.email || '';
+        try {
+          const res = await fetch('/api/mis-entradas', {
+            headers: { Authorization: `Bearer ${session.access_token}` }
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.mensaje);
+          const entradas = data.entradas || [];
+          if (!entradas.length) {
+            mostrarVacio('Todavía no compraste entradas', 'Cuando compres una, aparece acá con su QR.', { eventos: true });
+            return;
+          }
+          $('#listaEntradas').replaceChildren(...entradas.map(tarjeta));
+        } catch (error) {
+          mostrarVacio('No pudimos cargar tus entradas', 'Recargá la página en un momento.');
+        }
+      }
+
+      function sinSesion() {
+        $('#salir').hidden = true;
+        $('#cuenta').textContent = 'Tus entradas compradas, con su QR.';
+        mostrarVacio('Iniciá sesión', 'Entrá con la cuenta de Google con la que compraste para ver tus entradas.', { entrar: true });
+      }
+
+      async function iniciar() {
+        try {
+          const res = await fetch('/api/config');
+          const config = await res.json();
+          if (!config.supabaseUrl || !config.supabaseAnonKey) {
+            $('#cuenta').textContent = '';
+            mostrarVacio('No disponible', 'Tus entradas no se pueden consultar ahora mismo. Volvé en un rato.');
+            return;
+          }
+          supabaseClient = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey);
+          const { data: { session } } = await supabaseClient.auth.getSession();
+          if (session) cargarEntradas(session);
+          else sinSesion();
+        } catch (error) {
+          $('#cuenta').textContent = '';
+          mostrarVacio('No pudimos cargar la página', 'Revisá la conexión y recargá.');
+        }
+      }
+
+      $('#entrar').addEventListener('click', async () => {
+        if (!supabaseClient) return;
+        await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: `${window.location.origin}/mis-entradas` }
+        });
+      });
+
+      $('#salir').addEventListener('click', async () => {
+        if (!supabaseClient) return;
+        await supabaseClient.auth.signOut();
+        window.location.href = '/';
+      });
+
+      iniciar();
+    </script>
+  </body>
+</html>

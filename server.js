@@ -714,6 +714,10 @@ app.get("/scanner-dashboard", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "scanner-dashboard.html"));
 });
 
+app.get("/mis-entradas", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "mis-entradas.html"));
+});
+
 app.get("/ticket", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "ticket.html"));
 });

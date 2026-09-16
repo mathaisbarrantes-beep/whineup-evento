@@ -42,6 +42,12 @@
       .brand-sub{font-size:10px;letter-spacing:.24em;color:var(--text-faint);text-transform:uppercase;margin-top:2px;}
       .nav{display:flex;align-items:center;gap:28px;font-size:14px;color:var(--text-dim);}
       .nav a{font-weight:500;}
+      .header-right{display:flex;align-items:center;gap:28px;}
+      .cuenta{display:flex;align-items:center;gap:8px;}
+      .cuenta-btn{border:1px solid var(--border-strong);background:transparent;color:var(--text);border-radius:999px;padding:9px 16px;font-size:13px;font-weight:600;white-space:nowrap;display:inline-flex;align-items:center;}
+      .cuenta-btn:hover{border-color:var(--white);color:var(--white);}
+      .cuenta-btn.solido{background:var(--white);color:#0a0a0a;border-color:var(--white);}
+      .cuenta-btn.solido:hover{background:oklch(90% 0 0);color:#0a0a0a;}
 
       .hero{padding:88px 32px 64px;}
       .hero-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center;}
@@ -158,7 +164,9 @@
         .nav{display:none;}
       }
       @media (max-width:560px){
-        .header-inner,.hero,.events,.faq{padding-left:20px;padding-right:20px;}
+        .header-inner,.hero,.events,.faq{padding-left:16px;padding-right:16px;}
+        .brand-sub{display:none;}
+        .cuenta-btn{padding:8px 12px;font-size:12px;}
         .hero{padding-top:56px;}
         .faq-inner{padding:26px 20px;}
         .stat-row{grid-template-columns:minmax(0,180px);}
@@ -180,10 +188,18 @@
               <div class="brand-sub">Eventos</div>
             </div>
           </div>
-          <nav class="nav">
-            <a href="#events">Eventos</a>
-            <a href="#faq">Preguntas</a>
-          </nav>
+          <div class="header-right">
+            <nav class="nav">
+              <a href="#events">Eventos</a>
+              <a href="#faq">Preguntas</a>
+            </nav>
+            <!-- Solo para compradores: el staff entra por el acceso escondido del logo. -->
+            <div class="cuenta">
+              <button type="button" class="cuenta-btn" id="iniciarSesion" hidden>Iniciar sesión</button>
+              <a href="/mis-entradas" class="cuenta-btn solido" id="misEntradas" hidden>Mis entradas</a>
+              <button type="button" class="cuenta-btn" id="cerrarSesion" hidden>Salir</button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -581,8 +597,32 @@
 
       /* ------------------------------------------------------------- auth */
 
+      // Los botones de cuenta son para compradores. Una sesión de staff o admin
+      // no los muestra: su lugar es el panel, no "Mis entradas".
+      let rolConsultado = null;
+      async function pintarCuenta(session) {
+        const token = session ? session.access_token : null;
+        rolConsultado = token;
+        let esCliente = false;
+        if (session) {
+          try {
+            const estado = await fetch('/api/session-status', {
+              headers: { Authorization: `Bearer ${token}` }
+            }).then((r) => r.json());
+            esCliente = Boolean(estado && estado.authenticated && estado.user && estado.user.role === 'cliente');
+          } catch (error) {
+            esCliente = false;
+          }
+        }
+        if (rolConsultado !== token) return;
+        $('#iniciarSesion').hidden = Boolean(session);
+        $('#misEntradas').hidden = !esCliente;
+        $('#cerrarSesion').hidden = !esCliente;
+      }
+
       function manejarSesion(session) {
         currentSession = session;
+        pintarCuenta(session);
         // Volver de Google reabre la página: si el modal está en el paso 1 y ya
         // hay sesión, avanza solo en vez de pedir login otra vez.
         if (session && !$('#modalOverlay').hidden && paso === 1) {
@@ -625,6 +665,16 @@
           const { data: { session } } = await supabaseClient.auth.getSession();
           manejarSesion(session);
           supabaseClient.auth.onAuthStateChange((_tipo, sesion) => manejarSesion(sesion));
+
+          $('#iniciarSesion').addEventListener('click', async () => {
+            await supabaseClient.auth.signInWithOAuth({
+              provider: 'google',
+              options: { redirectTo: `${window.location.origin}/` }
+            });
+          });
+          $('#cerrarSesion').addEventListener('click', async () => {
+            await supabaseClient.auth.signOut();
+          });
 
           $('#googleLoginButton').addEventListener('click', async () => {
             await supabaseClient.auth.signInWithOAuth({

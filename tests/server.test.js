@@ -200,3 +200,15 @@ test('GET /scanner serves the full-screen scanner page', async () => {
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /html/);
 });
+
+test('GET /mis-entradas serves the buyer tickets page', async () => {
+  const res = await request(app).get('/mis-entradas');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /html/);
+  assert.match(res.text, /id="listaEntradas"/);
+});
+
+test('GET /api/mis-entradas returns 401 without a token', async () => {
+  const res = await request(app).get('/api/mis-entradas');
+  assert.equal(res.status, 401);
+});

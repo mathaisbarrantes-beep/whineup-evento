@@ -196,6 +196,9 @@
             <button type="submit" class="gen-btn" id="adminQrButton">Generar QR</button>
           </form>
           <div class="aviso" id="adminQrResult" hidden role="status"></div>
+          <div class="acciones" id="pruebaCorreoCaja" hidden>
+            <button type="button" class="approve" id="probarCorreo">Enviarme un correo de prueba</button>
+          </div>
           <div class="qr-grid" id="adminQrList"></div>
         </div>
 
@@ -358,6 +361,7 @@
           $('#paymentApproval').hidden = !operativo;
           $('#ticketsSection').hidden = !operativo;
           $('#eventosSection').hidden = !esAdmin;
+          $('#pruebaCorreoCaja').hidden = !esAdmin;
           $('#personalSection').hidden = !esAdmin;
 
           if (operativo) {
@@ -859,6 +863,28 @@
         } finally {
           boton.disabled = false;
           boton.textContent = 'Enviar invitación';
+        }
+      });
+
+      // Si las cortesías o las confirmaciones no llegan, esto dice por qué sin
+      // tener que abrir los logs del proveedor.
+      $('#probarCorreo').addEventListener('click', async () => {
+        const boton = $('#probarCorreo');
+        boton.disabled = true;
+        boton.textContent = 'Enviando…';
+        try {
+          const response = await authFetch('/api/admin/probar-correo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+          });
+          const data = await response.json();
+          avisar($('#adminQrResult'), data.mensaje || 'No se pudo probar el correo.', response.ok);
+        } catch (error) {
+          avisar($('#adminQrResult'), 'No se pudo conectar con el servidor.', false);
+        } finally {
+          boton.disabled = false;
+          boton.textContent = 'Enviarme un correo de prueba';
         }
       });
 

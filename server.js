@@ -30,6 +30,11 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const CATEGORIAS_VALIDAS = ["General", "VIP"];
 
+// Cada cortesía es una inserción, un QR y una llamada a EmailJS. Una función
+// serverless tiene unos segundos de vida: con tandas grandes la petición muere
+// a medias, con parte de las entradas creadas y parte de los correos sin salir.
+const MAX_CORTESIAS = 20;
+
 function correoValido(correo) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
 }
@@ -274,6 +279,50 @@ app.put("/api/admin/usuarios/:id/rol", requireRole("admin"), async (req, res) =>
   }
 });
 
+// Un fallo de correo no tumba nada y solo deja rastro en los logs del
+// proveedor, que no siempre se pueden mirar. Esta ruta lo hace visible: manda
+// un correo de verdad con la plantilla real y devuelve el error tal cual lo
+// dio EmailJS, para no tener que adivinar por que no llega nada.
+app.post("/api/admin/probar-correo", requireRole("admin"), async (req, res) => {
+  const destino = String(req.body.correo || req.usuario.email || "").trim().toLowerCase();
+  if (!correoValido(destino)) {
+    return res.status(400).json({ ok: false, mensaje: "Escribe un correo válido para la prueba." });
+  }
+
+  if (!emailer.emailConfigured) {
+    return res.status(503).json({
+      ok: false,
+      mensaje: "Faltan variables de EmailJS. Hacen falta las cinco: SERVICE_ID, PUBLIC_KEY, PRIVATE_KEY y las dos plantillas."
+    });
+  }
+
+  const { qrUrl, ticketUrl } = emailer.urlsDeTicket("00000000-0000-4000-8000-000000000000");
+  const envio = await emailer.enviar({
+    templateId: emailer.plantillas.ticket,
+    params: {
+      to_email: destino,
+      to_name: "Prueba de WhineUp",
+      subject: "Prueba de correo de WhineUp",
+      mensaje: "Este es un correo de prueba. Si te llegó, EmailJS está bien configurado y las entradas van a salir igual que este mensaje.",
+      evento: "Prueba",
+      tipo_entrada: "General",
+      qr_url: qrUrl,
+      ticket_url: ticketUrl,
+      referencia_corta: "PRUEBA"
+    }
+  });
+
+  if (!envio.ok) {
+    return res.status(502).json({
+      ok: false,
+      mensaje: `EmailJS rechazó el envío: ${envio.error}`,
+      detalle: envio.error
+    });
+  }
+
+  res.json({ ok: true, mensaje: `Correo de prueba enviado a ${destino}. Si no llega en un minuto, revisá la carpeta de spam.` });
+});
+
 app.post("/api/crear-ticket", requireRole(), async (req, res) => {
   try {
     const nombre = String(req.body.nombre || "").trim();
@@ -319,7 +368,7 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
     });
 
     const qrBuffer = await createTicketQr(ticket.id);
-    await emailer.enviar({
+    const envio = await emailer.enviar({
       templateId: emailer.plantillas.compra,
       params: paramsDeTicket(ticket, {
         asunto: `Recibimos tu solicitud para ${evento.nombre}`,
@@ -329,7 +378,10 @@ app.post("/api/crear-ticket", requireRole(), async (req, res) => {
 
     res.status(201).json({
       ok: true,
-      mensaje: "Solicitud recibida. El QR se activará cuando se confirme el pago.",
+      mensaje: envio.ok
+        ? "Solicitud recibida. Te mandamos un correo y el QR se activará cuando confirmemos el pago."
+        : "Solicitud recibida y el QR se activará cuando confirmemos el pago. No pudimos mandarte el correo: guardá el enlace de esta entrada.",
+      correoEnviado: envio.ok,
       ticket: { ...ticket, qrDataUrl: `data:image/png;base64,${qrBuffer.toString("base64")}` }
     });
   } catch (error) {
@@ -359,7 +411,7 @@ app.post("/api/admin/confirmar-pago/:ticketId", requireRole("admin", "staff"), a
     }
 
     const updated = await entradasRepo.confirmarPago(req.params.ticketId, req.usuario.id);
-    await emailer.enviar({
+    const envio = await emailer.enviar({
       templateId: emailer.plantillas.ticket,
       params: paramsDeTicket(updated, {
         asunto: `Tu entrada para ${updated.evento} ya está activa`,
@@ -367,7 +419,16 @@ app.post("/api/admin/confirmar-pago/:ticketId", requireRole("admin", "staff"), a
       })
     });
 
-    res.json({ ok: true, mensaje: "Pago confirmado y QR activado.", ticket: updated });
+    // Quien aprueba tiene que enterarse si el correo no salió: es la única
+    // persona en posición de avisar al comprador por otro medio.
+    res.json({
+      ok: true,
+      mensaje: envio.ok
+        ? "Pago confirmado y QR activado. Ya le avisamos por correo."
+        : `Pago confirmado y QR activado, pero el correo NO salió (${envio.error}). Avisale por otro medio y pasale el enlace de su entrada.`,
+      correoEnviado: envio.ok,
+      ticket: updated
+    });
   } catch (error) {
     console.error("Error al confirmar pago:", error);
     res.status(500).json({ ok: false, mensaje: "No se pudo confirmar el pago." });
@@ -409,11 +470,12 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
     if (!["General", "VIP"].includes(tipoEntrada)) {
       return res.status(400).json({ ok: false, mensaje: "El tipo de entrada debe ser General o VIP." });
     }
-    if (!Number.isFinite(cantidad) || cantidad < 1 || cantidad > 200) {
-      return res.status(400).json({ ok: false, mensaje: "La cantidad debe estar entre 1 y 200." });
+    if (!Number.isFinite(cantidad) || cantidad < 1 || cantidad > MAX_CORTESIAS) {
+      return res.status(400).json({ ok: false, mensaje: `La cantidad debe estar entre 1 y ${MAX_CORTESIAS}.` });
     }
 
     const generated = [];
+    const envios = [];
     for (let i = 0; i < cantidad; i += 1) {
       const ticket = await entradasRepo.crearGenerada({
         evento_id: evento.id,
@@ -428,20 +490,31 @@ app.post("/api/admin/crear-qr", requireRole("admin", "staff"), async (req, res) 
       });
 
       const qrBuffer = await createTicketQr(ticket.id);
-      await emailer.enviar({
+      // En serie, cada correo suma su latencia a la misma petición. En paralelo
+      // la tanda entera tarda lo que el envío más lento.
+      envios.push(emailer.enviar({
         templateId: emailer.plantillas.ticket,
         params: paramsDeTicket(ticket, {
           asunto: `Tu entrada para ${evento.nombre}`,
           mensaje: `Tu entrada ${tipoEntrada} para ${evento.nombre} ya está lista y activa. Presenta el código QR en la entrada del evento.`
         })
-      });
+      }));
 
       generated.push({ ...ticket, qrDataUrl: `data:image/png;base64,${qrBuffer.toString("base64")}` });
     }
 
+    const resultados = await Promise.all(envios);
+    const fallidos = resultados.filter((r) => !r.ok);
+    const enviados = resultados.length - fallidos.length;
+
     res.status(201).json({
       ok: true,
-      mensaje: `Se generaron ${generated.length} QR correctamente y se enviaron al correo indicado.`,
+      // Antes esta línea afirmaba que los correos habían salido, saliesen o no.
+      mensaje: fallidos.length
+        ? `Se generaron ${generated.length} QR, pero ${fallidos.length} correo(s) no salieron (${fallidos[0].error}). Las entradas son válidas igual: podés pasarlas desde el listado.`
+        : `Se generaron ${generated.length} QR y se enviaron ${enviados} correo(s) a ${correo}.`,
+      correosEnviados: enviados,
+      correosFallidos: fallidos.length,
       tickets: generated
     });
   } catch (error) {

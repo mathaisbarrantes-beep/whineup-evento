@@ -138,3 +138,16 @@ test('GET /establecer-clave serves the invite landing page', async () => {
   assert.equal(res.status, 200);
   assert.match(res.headers['content-type'], /html/);
 });
+
+test('POST /api/admin/probar-correo returns 401 without a token', async () => {
+  const res = await request(app).post('/api/admin/probar-correo').send({ correo: 'a@b.com' });
+  assert.equal(res.status, 401);
+});
+
+test('POST /api/admin/probar-correo returns 503 with a token when unconfigured', async () => {
+  const res = await request(app)
+    .post('/api/admin/probar-correo')
+    .set('Authorization', 'Bearer fake')
+    .send({ correo: 'a@b.com' });
+  assert.equal(res.status, 503);
+});
